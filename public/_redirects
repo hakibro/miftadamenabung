@@ -1,5 +1,0 @@
-/login /index.html 200
-/admin/* /index.html 200
-/bendahara/* /index.html 200
-/walas/* /index.html 200
-/scan/* /index.html 200
