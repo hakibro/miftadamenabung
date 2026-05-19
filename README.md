@@ -89,6 +89,18 @@ profiles.is_active = true
 npm run dev
 ```
 
+## Deploy Cloudflare Pages
+
+Gunakan konfigurasi Pages biasa:
+
+```text
+Build command: npm run build
+Build output directory: dist
+Deploy command: kosongkan
+```
+
+Jangan isi deploy command dengan `npx wrangler deploy` untuk Cloudflare Pages. Wrangler akan mencoba deploy sebagai Worker dan bisa menolak konfigurasi SPA redirect. File `public/_redirects` sudah dibuat eksplisit untuk route aplikasi agar deep link seperti `/admin/settings` tetap masuk ke React Router.
+
 ## Akun dan Role
 
 Frontend tidak menyimpan service role key. CRUD akun admin/bendahara/walas dilakukan dari halaman `/admin/users` melalui Supabase Edge Function `manage-user`.
