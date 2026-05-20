@@ -11,6 +11,8 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
 }
 
 button, input, select, textarea {
@@ -19,6 +21,18 @@ button, input, select, textarea {
 
 html {
   background: #f7f1ff;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+@supports (min-height: 100dvh) {
+  .app-shell {
+    min-height: 100dvh;
+  }
 }
 
 * {

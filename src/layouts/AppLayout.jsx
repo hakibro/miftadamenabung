@@ -9,7 +9,8 @@ import {
   QrCode,
   Receipt,
   Settings,
-  Users
+  Users,
+  WalletCards
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
@@ -34,7 +35,8 @@ const navByRole = {
     { to: '/walas/dashboard', label: 'Dashboard', icon: Home, mobile: true },
     { to: '/walas/students', label: 'Siswa', icon: GraduationCap, mobile: true },
     { to: '/walas/input', label: 'Input', icon: Receipt, mobile: true },
-    { to: '/walas/reports', label: 'Laporan', icon: BarChart3, mobile: true },
+    { to: '/walas/savings-withdrawals', label: 'Pengambilan', icon: WalletCards, mobile: true },
+    { to: '/walas/reports', label: 'Laporan', icon: BarChart3 },
   ],
 };
 
@@ -61,7 +63,7 @@ export default function AppLayout() {
   const schoolName = settings?.school_name || 'Administrasi sekolah';
 
   return (
-    <div className="min-h-screen bg-[#f7f1ff] text-slate-900 lg:flex">
+    <div className="app-shell min-h-screen bg-[#f7f1ff] text-slate-900 lg:flex">
       <aside className="no-print hidden border-r border-white/70 bg-white/90 shadow-soft backdrop-blur lg:fixed lg:inset-y-0 lg:block lg:w-72">
         <div className="flex h-20 items-center gap-3 px-5">
           <LogoMark logoUrl={settings?.logo_url} appName={appName} />
@@ -93,7 +95,7 @@ export default function AppLayout() {
 
       <div className="min-w-0 flex-1 lg:pl-72">
         <header className="no-print sticky top-0 z-20 bg-[#f7f1ff]/90 backdrop-blur lg:bg-white/85">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:h-18 lg:px-6">
+          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:h-20 lg:px-6">
             <div className="flex min-w-0 items-center gap-3 lg:hidden">
               <LogoMark logoUrl={settings?.logo_url} appName={appName} />
               <div className="min-w-0">
@@ -116,12 +118,12 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-md px-4 py-4 pb-28 sm:max-w-none sm:px-5 lg:max-w-none lg:px-6 lg:pb-8">
+        <main className="mx-auto w-full max-w-md px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+7.5rem)] sm:max-w-none sm:px-5 lg:max-w-none lg:px-6 lg:pb-8">
           <Outlet />
         </main>
       </div>
 
-      <nav className="no-print fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] lg:hidden">
+      <nav className="no-print fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] lg:hidden">
         <div className="mx-auto grid max-w-md gap-1 rounded-[26px] border border-white/80 bg-white/95 p-2 shadow-soft backdrop-blur" style={{ gridTemplateColumns: `repeat(${Math.max(mobileNav.length, 1)}, minmax(0, 1fr))` }}>
           {mobileNav.map((item) => {
             const Icon = item.icon;

@@ -7,25 +7,62 @@ function normalizeTransactionEditError(error) {
   return error;
 }
 
-export async function getSavingsBalance(studentId) {
-  const { data, error } = await supabase.rpc('get_student_savings_balance', { target_student_id: studentId });
+export async function getSavingsBalance(studentId, periodId = null) {
+  const { data, error } = await supabase.rpc('get_student_savings_balance', {
+    target_student_id: studentId,
+    target_period_id: periodId,
+  });
   if (error) throw error;
   return Number(data || 0);
+}
+
+export async function getPublicStudentQrFinance(studentId) {
+  const { data, error } = await supabase.rpc('get_public_student_qr_finance', {
+    target_student_id: studentId,
+  });
+  if (error) throw error;
+  return data || null;
 }
 
 export async function listSavingsTransactions(filters = {}) {
   let query = supabase
     .from('savings_transactions')
-    .select('*, student:students(id,name,nis,current_class:classes(name))')
+    .select('*, student:students(id,name,nis,current_class:classes(name)), charge_payment:charge_payments!charge_payments_savings_transaction_id_fkey(id,charge_category_id,category:charge_categories(name))')
     .order('transaction_date', { ascending: false })
     .order('created_at', { ascending: false });
   if (filters.studentId) query = query.eq('student_id', filters.studentId);
   if (filters.type) query = query.eq('type', filters.type);
+  if (filters.periodId) query = query.eq('period_id', filters.periodId);
   if (filters.startDate) query = query.gte('transaction_date', filters.startDate);
   if (filters.endDate) query = query.lte('transaction_date', filters.endDate);
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => ({
+    ...row,
+    withdrawal_category: getSavingsWithdrawalCategory(row),
+  }));
+}
+
+export function getSavingsWithdrawalCategory(row) {
+  if (row.type !== 'tarik') return 'setoran';
+  if (row.category === 'charge') return 'charge';
+  if (row.category === 'year_end_cut') return 'potongan_akhir_tahun';
+  if (row.category === 'year_end_withdrawal') return 'pengambilan_akhir_tahun';
+  const chargePayment = Array.isArray(row.charge_payment) ? row.charge_payment[0] : row.charge_payment;
+  if (chargePayment?.id) return 'charge';
+  if (String(row.note || '').toLowerCase().includes('bagi hasil sekolah')) return 'potongan_akhir_tahun';
+  if (String(row.note || '').toLowerCase().includes('potongan akhir tahun ajaran')) return 'potongan_akhir_tahun';
+  if (String(row.note || '').toLowerCase().includes('potongan akhir periode')) return 'potongan_akhir_tahun';
+  return 'manual';
+}
+
+export function getSavingsWithdrawalCategoryLabel(row) {
+  const category = row.withdrawal_category || getSavingsWithdrawalCategory(row);
+  if (category === 'charge') return 'Pembayaran tagihan';
+  if (category === 'potongan_akhir_tahun') return 'Bagi hasil sekolah 5%';
+  if (category === 'pengambilan_akhir_tahun') return 'Pengambilan akhir tahun';
+  if (category === 'manual') return 'Penarikan manual';
+  return 'Setoran';
 }
 
 export async function createSavingsTransaction(payload) {
@@ -45,164 +82,6 @@ export async function deleteSavingsTransaction(id) {
   if (error) throw error;
 }
 
-export async function listInfaqPayments(filters = {}) {
-  let query = supabase
-    .from('infaq_payments')
-    .select('*, student:students(id,name,nis,current_class:classes(name)), period:periods(name)')
-    .order('year', { ascending: false })
-    .order('month', { ascending: true });
-  if (filters.studentId) query = query.eq('student_id', filters.studentId);
-  if (filters.periodId) query = query.eq('period_id', filters.periodId);
-  if (filters.month) query = query.eq('month', filters.month);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
-}
-
-export async function createInfaqPayment(payload) {
-  const { data, error } = await supabase
-    .from('infaq_payments')
-    .upsert(payload, { onConflict: 'student_id,period_id,month,year' })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateInfaqPayment(id, payload) {
-  const { data, error } = await supabase.from('infaq_payments').update(payload).eq('id', id).select().single();
-  if (error) throw normalizeTransactionEditError(error);
-  return data;
-}
-
-export async function createFullPeriodInfaq({ student_id, period_id, year, monthly_amount, months = [], months_count = 12, note }) {
-  const targetMonths = months.length ? months : Array.from({ length: Number(months_count || 12) }, (_, index) => index + 1);
-  const rows = targetMonths.map((month) => ({
-    student_id,
-    period_id,
-    year,
-    month,
-    amount: monthly_amount,
-    status: 'lunas',
-    note,
-  }));
-  const { data, error } = await supabase
-    .from('infaq_payments')
-    .upsert(rows, { onConflict: 'student_id,period_id,month,year' })
-    .select();
-  if (error) throw error;
-  return data || [];
-}
-
-export const createFullYearInfaq = createFullPeriodInfaq;
-
-export async function listLksBills(filters = {}) {
-  let query = supabase
-    .from('lks_bills')
-    .select('*, class:classes(name), period:periods(name), class_amounts:lks_bill_class_amounts(id,class_id,amount,note,class:classes(name))')
-    .order('semester', { ascending: true })
-    .order('created_at', { ascending: false });
-  if (filters.classId) query = query.or(`class_id.eq.${filters.classId},class_id.is.null`);
-  if (filters.periodId) query = query.eq('period_id', filters.periodId);
-  if (filters.semester) query = query.eq('semester', Number(filters.semester));
-  const { data, error } = await query;
-  if (error) {
-    let fallback = supabase.from('lks_bills').select('*').order('semester', { ascending: true }).order('created_at', { ascending: false });
-    if (filters.classId) fallback = fallback.or(`class_id.eq.${filters.classId},class_id.is.null`);
-    if (filters.periodId) fallback = fallback.eq('period_id', filters.periodId);
-    if (filters.semester) fallback = fallback.eq('semester', Number(filters.semester));
-
-    const { data: bills, error: billsError } = await fallback;
-    if (billsError) throw error;
-
-    const billIds = (bills || []).map((bill) => bill.id);
-    const classIds = [...new Set((bills || []).map((bill) => bill.class_id).filter(Boolean))];
-    const { data: amountRows } = billIds.length
-      ? await supabase.from('lks_bill_class_amounts').select('*').in('lks_bill_id', billIds)
-      : { data: [] };
-    classIds.push(...(amountRows || []).map((item) => item.class_id).filter(Boolean));
-    const uniqueClassIds = [...new Set(classIds)];
-    const periodIds = [...new Set((bills || []).map((bill) => bill.period_id).filter(Boolean))];
-    const { data: classRows } = uniqueClassIds.length
-      ? await supabase.from('classes').select('id,name').in('id', uniqueClassIds)
-      : { data: [] };
-    const { data: periodRows } = periodIds.length
-      ? await supabase.from('periods').select('id,name').in('id', periodIds)
-      : { data: [] };
-    const classById = new Map((classRows || []).map((item) => [item.id, item]));
-    const periodById = new Map((periodRows || []).map((item) => [item.id, item]));
-
-    return (bills || []).map((bill) => ({
-      ...bill,
-      class: bill.class_id ? classById.get(bill.class_id) || null : null,
-      period: bill.period_id ? periodById.get(bill.period_id) || null : null,
-      class_amounts: (amountRows || [])
-        .filter((item) => item.lks_bill_id === bill.id)
-        .map((item) => ({ ...item, class: classById.get(item.class_id) || null })),
-    }));
-  }
-  return data || [];
-}
-
-export async function saveLksBill(payload) {
-  const { class_amounts, ...billPayload } = payload;
-  const query = billPayload.id ? supabase.from('lks_bills').update(billPayload).eq('id', billPayload.id) : supabase.from('lks_bills').insert(billPayload);
-  const { data, error } = await query.select().single();
-  if (error) throw error;
-
-  if (Array.isArray(class_amounts)) {
-    const rows = class_amounts
-      .filter((item) => item.class_id && Number(item.amount) > 0)
-      .map((item) => ({
-        lks_bill_id: data.id,
-        class_id: item.class_id,
-        amount: Number(item.amount),
-        note: item.note || null,
-      }));
-
-    if (billPayload.id) {
-      const { error: deleteError } = await supabase.from('lks_bill_class_amounts').delete().eq('lks_bill_id', data.id);
-      if (deleteError) throw deleteError;
-    }
-
-    if (rows.length) {
-      const { error: detailError } = await supabase.from('lks_bill_class_amounts').insert(rows);
-      if (detailError) throw detailError;
-    }
-  }
-
-  return data;
-}
-
-export async function deleteLksBill(id) {
-  const { error } = await supabase.from('lks_bills').delete().eq('id', id);
-  if (error) throw error;
-}
-
-export async function listLksPayments(filters = {}) {
-  let query = supabase
-    .from('lks_payments')
-    .select('*, student:students(id,name,nis,current_class:classes(name)), bill:lks_bills(name,semester,total_amount)')
-    .order('payment_date', { ascending: false });
-  if (filters.studentId) query = query.eq('student_id', filters.studentId);
-  if (filters.billId) query = query.eq('lks_bill_id', filters.billId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
-}
-
-export async function updateLksPayment(id, payload) {
-  const { data, error } = await supabase.from('lks_payments').update(payload).eq('id', id).select().single();
-  if (error) throw normalizeTransactionEditError(error);
-  return data;
-}
-
-export async function createLksPayment(payload) {
-  const { data, error } = await supabase.rpc('create_lks_payment', { payment: payload });
-  if (error) throw error;
-  return data;
-}
-
 export async function getFinanceSummary(filters = {}) {
   const { data, error } = await supabase.rpc('get_finance_summary', {
     target_period_id: filters.periodId || null,
@@ -213,4 +92,97 @@ export async function getFinanceSummary(filters = {}) {
   });
   if (error) throw error;
   return data?.[0] || {};
+}
+
+export async function processYearEndSavingsAction(payload) {
+  const { data, error } = await supabase.rpc('process_year_end_savings_action', { action_payload: payload });
+  if (error) throw error;
+  return data;
+}
+
+export async function listSavingsYearEndActions(filters = {}) {
+  let query = supabase
+    .from('savings_year_end_actions')
+    .select('*, student:students(id,name,nis,current_class:classes(id,name,grade)), period:periods(id,name)')
+    .order('created_at', { ascending: false });
+  if (filters.periodId) query = query.eq('period_id', filters.periodId);
+  if (filters.studentId) query = query.eq('student_id', filters.studentId);
+  if (filters.startDate) query = query.gte('created_at', filters.startDate);
+  if (filters.endDate) query = query.lte('created_at', `${filters.endDate}T23:59:59`);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).filter((row) => {
+    if (filters.classId && row.student?.current_class?.id !== filters.classId) return false;
+    return true;
+  });
+}
+
+export async function listChargeCategories(filters = {}) {
+  let query = supabase
+    .from('charge_categories')
+    .select('*, period:periods(id,name), grades:charge_category_grades(id,grade)')
+    .order('created_at', { ascending: false });
+  if (filters.periodId) query = query.eq('period_id', filters.periodId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveChargeCategory(payload) {
+  const { grades = [], ...categoryPayload } = payload;
+  const { id, period, created_at, updated_at, created_by, ...values } = categoryPayload;
+  const query = categoryPayload.id
+    ? supabase.from('charge_categories').update(values).eq('id', id)
+    : supabase.from('charge_categories').insert(values);
+  const { data, error } = await query.select().single();
+  if (error) throw error;
+
+  const { error: deleteError } = await supabase.from('charge_category_grades').delete().eq('charge_category_id', data.id);
+  if (deleteError) throw deleteError;
+
+  const gradeRows = grades.map((grade) => ({ charge_category_id: data.id, grade: Number(grade) })).filter((row) => row.grade);
+  if (gradeRows.length) {
+    const { error: gradeError } = await supabase.from('charge_category_grades').insert(gradeRows);
+    if (gradeError) throw gradeError;
+  }
+
+  return data;
+}
+
+export async function deleteChargeCategory(id) {
+  const { error } = await supabase.from('charge_categories').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function createChargePayment(payload) {
+  const { data, error } = await supabase.rpc('create_charge_payment', { payment: payload });
+  if (error) throw error;
+  return data;
+}
+
+export async function updateChargePayment(id, payload) {
+  const { data, error } = await supabase.rpc('update_charge_payment', {
+    payment_id: id,
+    payment: payload,
+  });
+  if (error) throw normalizeTransactionEditError(error);
+  return data;
+}
+
+export async function listChargePayments(filters = {}) {
+  let query = supabase
+    .from('charge_payments')
+    .select('*, student:students(id,name,nis,current_class:classes(id,name,grade,period_id)), category:charge_categories(id,name,amount,period_id)')
+    .order('payment_date', { ascending: false });
+  if (filters.studentId) query = query.eq('student_id', filters.studentId);
+  if (filters.categoryId) query = query.eq('charge_category_id', filters.categoryId);
+  if (filters.startDate) query = query.gte('payment_date', filters.startDate);
+  if (filters.endDate) query = query.lte('payment_date', filters.endDate);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).filter((row) => {
+    if (filters.periodId && row.category?.period_id !== filters.periodId) return false;
+    if (filters.classId && row.student?.current_class?.id !== filters.classId) return false;
+    return true;
+  });
 }

@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       const { data, error } = await adminClient
         .from('profiles')
-        .select('*, assigned_class:classes!profiles_assigned_class_id_fkey(name)')
+        .select('*, assigned_class:classes!profiles_assigned_class_id_fkey(id,name,period_id,period:periods(id,name,is_active))')
         .order('full_name');
 
       if (!error) return jsonResponse({ profiles: data || [] });
@@ -73,11 +73,11 @@ Deno.serve(async (req) => {
         .select('*')
         .order('full_name');
 
-      if (plainError) throw error;
+      if (plainError) throw plainError;
 
       const classIds = [...new Set((plainProfiles || []).map((profile) => profile.assigned_class_id).filter(Boolean))];
       const { data: classRows, error: classError } = classIds.length
-        ? await adminClient.from('classes').select('id,name').in('id', classIds)
+        ? await adminClient.from('classes').select('id,name,period_id,period:periods(id,name,is_active)').in('id', classIds)
         : { data: [], error: null };
 
       if (classError) throw classError;
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
         full_name: payload.full_name,
         email: payload.email,
         role: payload.role,
-        assigned_class_id: payload.role === 'walas' ? payload.assigned_class_id || null : null,
+        assigned_class_id: null,
         is_active: payload.is_active ?? true,
       });
 
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         full_name: payload.full_name,
         email: payload.email,
         role: payload.role,
-        assigned_class_id: payload.role === 'walas' ? payload.assigned_class_id || null : null,
+        assigned_class_id: null,
         is_active: payload.is_active ?? true,
       } });
     }
@@ -147,15 +147,22 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
 
+      const profileUpdate: Record<string, unknown> = {
+        full_name: payload.full_name,
+        email: payload.email,
+        role: payload.role,
+        is_active: payload.is_active ?? true,
+      };
+
+      if (payload.role !== 'walas') {
+        profileUpdate.assigned_class_id = null;
+      } else if (Object.prototype.hasOwnProperty.call(payload, 'assigned_class_id')) {
+        profileUpdate.assigned_class_id = payload.assigned_class_id || null;
+      }
+
       const { error: profileError } = await adminClient
         .from('profiles')
-        .update({
-          full_name: payload.full_name,
-          email: payload.email,
-          role: payload.role,
-          assigned_class_id: payload.role === 'walas' ? payload.assigned_class_id || null : null,
-          is_active: payload.is_active ?? true,
-        })
+        .update(profileUpdate)
         .eq('id', payload.id);
 
       if (profileError) throw profileError;

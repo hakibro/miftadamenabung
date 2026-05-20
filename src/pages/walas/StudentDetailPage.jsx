@@ -3,21 +3,21 @@ import { useParams } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import StatCard from '../../components/StatCard';
 import { getStudent } from '../../services/masterDataService';
-import { getSavingsBalance, listInfaqPayments, listLksPayments, listSavingsTransactions } from '../../services/financeService';
+import { getSavingsBalance, listChargePayments, listSavingsTransactions } from '../../services/financeService';
 import { formatDateId, formatRupiah } from '../../utils/formatters';
 
 export default function StudentDetailPage() {
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [balance, setBalance] = useState(0);
-  const [rows, setRows] = useState({ savings: [], infaq: [], lks: [] });
+  const [rows, setRows] = useState({ savings: [], charges: [] });
 
   useEffect(() => {
-    Promise.all([getStudent(id), getSavingsBalance(id), listSavingsTransactions({ studentId: id }), listInfaqPayments({ studentId: id }), listLksPayments({ studentId: id })])
-      .then(([studentData, savingsBalance, savings, infaq, lks]) => {
+    Promise.all([getStudent(id), getSavingsBalance(id), listSavingsTransactions({ studentId: id }), listChargePayments({ studentId: id })])
+      .then(([studentData, savingsBalance, savings, charges]) => {
         setStudent(studentData);
         setBalance(savingsBalance);
-        setRows({ savings, infaq, lks });
+        setRows({ savings, charges });
       });
   }, [id]);
 

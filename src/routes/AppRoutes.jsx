@@ -8,6 +8,7 @@ import StudentsPage from '../pages/admin/StudentsPage';
 import ImportPage from '../pages/admin/ImportPage';
 import QrCodesPage from '../pages/admin/QrCodesPage';
 import SettingsPage from '../pages/admin/SettingsPage';
+import SavingsWithdrawalsPage from '../pages/admin/SavingsWithdrawalsPage';
 import BendaharaDashboard from '../pages/bendahara/BendaharaDashboard';
 import WalasDashboard from '../pages/walas/WalasDashboard';
 import WalasStudentsPage from '../pages/walas/WalasStudentsPage';
@@ -20,6 +21,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/scan/siswa/:id" element={<ScanStudentPage />} />
 
       <Route element={<ProtectedRoute roles={['admin']} />}>
         <Route element={<AppLayout />}>
@@ -31,6 +33,8 @@ export default function AppRoutes() {
           <Route path="/admin/import" element={<ImportPage />} />
           <Route path="/admin/promotion" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/admin/qrcodes" element={<QrCodesPage />} />
+          <Route path="/admin/charges" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/admin/savings-withdrawals" element={<Navigate to="/walas/savings-withdrawals" replace />} />
           <Route path="/admin/reports" element={<ReportPage />} />
           <Route path="/admin/settings" element={<SettingsPage />} />
         </Route>
@@ -50,9 +54,10 @@ export default function AppRoutes() {
           <Route path="/walas/dashboard" element={<WalasDashboard />} />
           <Route path="/walas/students" element={<WalasStudentsPage />} />
           <Route path="/walas/input" element={<InputPage />} />
+          <Route path="/walas/charges" element={<Navigate to="/walas/input" replace />} />
+          <Route path="/walas/savings-withdrawals" element={<SavingsWithdrawalsPage scope="walas" />} />
           <Route path="/walas/reports" element={<ReportPage scope="walas" />} />
           <Route path="/walas/student/:id" element={<StudentDetailPage />} />
-          <Route path="/scan/siswa/:id" element={<ScanStudentPage />} />
         </Route>
       </Route>
 

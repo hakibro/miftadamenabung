@@ -2,36 +2,30 @@ import { useEffect, useRef, useState } from "react";
 import FormField from "./FormField";
 import Toast from "./Toast";
 import {
-	createFullPeriodInfaq,
-	createInfaqPayment,
-	createLksPayment,
+	createChargePayment,
 	createSavingsTransaction,
 	getSavingsBalance,
-	listInfaqPayments,
-	listLksBills,
-	listLksPayments,
+	listChargeCategories,
+	listChargePayments,
+	listSavingsYearEndActions,
 	listSavingsTransactions,
-	updateInfaqPayment,
-	updateLksPayment,
+	updateChargePayment,
 	updateSavingsTransaction,
 } from "../services/financeService";
 import { todayISO, formatRupiah, formatDateId } from "../utils/formatters";
-import { useSettings } from "../contexts/SettingsContext";
 
 const tabs = [
 	{ id: "savings", label: "Tabungan" },
-	{ id: "infaq", label: "Infaq" },
-	{ id: "lks", label: "LKS" },
+	{ id: "charge", label: "Tagihan" },
 ];
 
 export default function TransactionTabs({ student, method = "manual" }) {
-	const { settings } = useSettings();
 	const [active, setActive] = useState("savings");
 	const [balance, setBalance] = useState(0);
 	const [savingsRows, setSavingsRows] = useState([]);
-	const [bills, setBills] = useState([]);
-	const [infaqRows, setInfaqRows] = useState([]);
-	const [lksRows, setLksRows] = useState([]);
+	const [yearEndAction, setYearEndAction] = useState(null);
+	const [chargeCategories, setChargeCategories] = useState([]);
+	const [chargeRows, setChargeRows] = useState([]);
 	const [toast, setToast] = useState(null);
 	const [error, setError] = useState(null);
 	const amountRef = useRef(null);
@@ -43,112 +37,91 @@ export default function TransactionTabs({ student, method = "manual" }) {
 		note: "",
 	});
 	const [editing, setEditing] = useState(null);
-	const periodStartYear = student.current_class?.periods?.start_date
-		? new Date(student.current_class.periods.start_date).getFullYear()
-		: new Date().getFullYear();
-	const periodName = student.current_class?.periods?.name || "Tahun ajaran aktif";
-	const infaqMonths = settings?.infaq_months_per_period || 12;
-	const monthlyInfaq = Number(settings?.default_monthly_infaq || 0);
-	const [infaq, setInfaq] = useState({
-		month: new Date().getMonth() + 1,
-		amount: settings?.default_monthly_infaq || "",
-		note: "",
-		full_period: false,
-	});
-	const [lks, setLks] = useState({
-		lks_bill_id: "",
+	const activePeriodId = student.current_class?.period_id;
+	const savingsLocked = Boolean(yearEndAction);
+	const savingsLockedMessage =
+		"Tabungan siswa ini sudah diproses di Pengambilan Tabungan untuk tahun ajaran ini. Input tabungan dikunci karena akan masuk tahun ajaran berikutnya.";
+	const [charge, setCharge] = useState({
+		charge_category_id: "",
 		amount_paid: "",
 		payment_date: todayISO(),
 		payment_method: "tunai",
 		note: "",
 	});
-	const selectedBill = bills.find((bill) => bill.id === lks.lks_bill_id);
-	const classBillAmount = selectedBill?.class_amounts?.find(
-		(item) =>
-			item.class_id === (student.current_class_id || student.current_class?.id),
-	);
-	const suggestedLksAmount =
-		classBillAmount?.amount || selectedBill?.total_amount || 0;
-	const paidInfaqMonths = infaqRows.filter(
-		(row) => row.status === "lunas",
-	).length;
-	const selectedInfaq = infaqRows.find(
-		(row) => Number(row.month) === Number(infaq.month),
-	);
-	const unpaidInfaqMonths = Array.from(
-		{ length: Number(infaqMonths || 12) },
-		(_, index) => index + 1,
-	).filter(
-		(month) =>
-			infaqRows.find((row) => Number(row.month) === month)?.status !== "lunas",
-	);
-	const fullPeriodTotal = unpaidInfaqMonths.length * monthlyInfaq;
-	const lksPaidTotal = lksRows.reduce(
-		(sum, row) => sum + Number(row.amount_paid || 0),
-		0,
-	);
-	const selectedBillPayments = lksRows.filter(
-		(row) => row.lks_bill_id === lks.lks_bill_id,
-	);
-	const selectedBillPaid = selectedBillPayments.reduce(
-		(sum, row) => sum + Number(row.amount_paid || 0),
-		0,
-	);
-	const selectedBillRemaining = Math.max(
-		Number(suggestedLksAmount || 0) - selectedBillPaid,
-		0,
-	);
-	const selectedInfaqIsLunas = selectedInfaq?.status === "lunas";
-	const selectedBillIsLunas =
-		Boolean(lks.lks_bill_id) &&
-		selectedBillRemaining <= 0 &&
-		selectedBillPaid > 0;
-	const periodStartMonth = student.current_class?.periods?.start_date
-		? new Date(student.current_class.periods.start_date).getMonth()
-		: 0;
-	const monthNames = Array.from({ length: Number(infaqMonths || 12) }, (_, index) => {
-		const date = new Date(2026, periodStartMonth + index, 1);
-		return new Intl.DateTimeFormat("id-ID", { month: "long" }).format(date);
+	function chargeAppliesToStudent(category) {
+		if (!category) return false;
+		const gradeSet = new Set((category.grades || []).map((item) => Number(item.grade)));
+		if (category.period_id !== activePeriodId) return false;
+		if (gradeSet.size && !gradeSet.has(Number(student.current_class?.grade))) return false;
+		if (category.gender_scope !== "all" && student.gender !== category.gender_scope) return false;
+		return true;
+	}
+	const eligibleChargeCategories = chargeCategories.filter(chargeAppliesToStudent);
+	const selectedCharge = eligibleChargeCategories.find((item) => item.id === charge.charge_category_id);
+	const chargeSummaries = eligibleChargeCategories.map((category) => {
+		const paid = chargeRows
+			.filter((row) => row.charge_category_id === category.id)
+			.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0);
+		return {
+			...category,
+			paid,
+			remaining: Math.max(Number(category.amount || 0) - paid, 0),
+		};
 	});
-	const inferInfaqStatus = (amount) => {
-		const value = Number(amount || 0);
-		if (value <= 0) return "belum_bayar";
-		if (monthlyInfaq && value < monthlyInfaq) return "sebagian";
-		return "lunas";
-	};
-	const inferLksStatus = (amount) => {
-		const afterPayment = selectedBillPaid + Number(amount || 0);
-		if (afterPayment <= 0) return "belum_bayar";
-		if (suggestedLksAmount && afterPayment >= Number(suggestedLksAmount))
-			return "lunas";
-		return "sebagian";
-	};
-
+	const selectedChargePayments = chargeRows.filter(
+		(row) => row.charge_category_id === charge.charge_category_id,
+	);
+	const selectedChargePaid = selectedChargePayments.reduce(
+		(sum, row) => sum + Number(row.amount_paid || 0),
+		0,
+	);
+	const selectedChargeRemaining = Math.max(
+		Number(selectedCharge?.amount || 0) - selectedChargePaid,
+		0,
+	);
+	const editingChargeOriginalAmount =
+		editing?.type === "charge" && editing.charge_category_id === charge.charge_category_id
+			? Number(editing.originalAmount || 0)
+			: 0;
+	const chargeAvailableToPay = selectedChargeRemaining + editingChargeOriginalAmount;
+	const selectedChargeIsPaid = Boolean(selectedCharge) && chargeAvailableToPay <= 0;
+	const chargeAmountValue = Number(charge.amount_paid || 0);
+	const chargeAmountInvalid =
+		Boolean(selectedCharge) &&
+		(chargeAmountValue <= 0 ||
+			chargeAmountValue > chargeAvailableToPay ||
+			(selectedCharge.allow_installments === false && chargeAmountValue !== chargeAvailableToPay));
 	async function refresh() {
 		if (!student?.id) return;
-		const [nextBalance, nextSavings, nextBills, nextInfaq, nextLks] =
+		const [
+			nextBalance,
+			nextSavings,
+			nextYearEndActions,
+			nextCharges,
+			nextChargeRows,
+		] =
 			await Promise.all([
-				getSavingsBalance(student.id),
-				listSavingsTransactions({ studentId: student.id }),
-				listLksBills({
-					classId: student.current_class_id || student.current_class?.id,
-				}),
-				listInfaqPayments({
-					studentId: student.id,
-					periodId: student.current_class?.period_id,
-				}),
-				listLksPayments({ studentId: student.id }),
+				getSavingsBalance(student.id, activePeriodId),
+				listSavingsTransactions({ studentId: student.id, periodId: activePeriodId }),
+				activePeriodId
+					? listSavingsYearEndActions({
+							studentId: student.id,
+							periodId: activePeriodId,
+						})
+					: Promise.resolve([]),
+				listChargeCategories({ periodId: activePeriodId }),
+				listChargePayments({ studentId: student.id, periodId: activePeriodId }),
 			]);
 		setBalance(nextBalance);
 		setSavingsRows(nextSavings);
-		setBills(nextBills);
-		setInfaqRows(nextInfaq);
-		setLksRows(nextLks);
+		setYearEndAction(nextYearEndActions[0] || null);
+		setChargeCategories(nextCharges);
+		setChargeRows(nextChargeRows);
 	}
 
 	useEffect(() => {
 		refresh();
-	}, [student?.id]);
+	}, [student?.id, activePeriodId]);
 	useEffect(() => {
 		amountRef.current?.focus();
 	}, [active, student?.id]);
@@ -163,13 +136,19 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	async function saveSavings(event) {
 		event.preventDefault();
 		setError(null);
+		if (savingsLocked) {
+			setError(savingsLockedMessage);
+			return;
+		}
 		try {
 			const payload = {
 				student_id: student.id,
+				period_id: activePeriodId,
 				type: savings.type,
 				amount: Number(savings.amount),
 				transaction_date: savings.transaction_date,
 				input_method: method,
+				category: "manual",
 				note: savings.note,
 			};
 			if (editing?.type === "savings")
@@ -189,67 +168,38 @@ export default function TransactionTabs({ student, method = "manual" }) {
 		}
 	}
 
-	async function saveInfaq(event) {
+	async function saveCharge(event) {
 		event.preventDefault();
 		setError(null);
 		try {
-			if (infaq.full_period) {
-				await createFullPeriodInfaq({
-					student_id: student.id,
-					period_id: student.current_class?.period_id,
-					year: periodStartYear,
-					monthly_amount:
-						Number(infaq.amount) / Math.max(unpaidInfaqMonths.length, 1),
-					months: unpaidInfaqMonths,
-					months_count: infaqMonths,
-					note: infaq.note,
-				});
-			} else {
-				const payload = {
-					student_id: student.id,
-					period_id: student.current_class?.period_id,
-					month: Number(infaq.month),
-					year: periodStartYear,
-					amount: Number(infaq.amount),
-					status: inferInfaqStatus(infaq.amount),
-					note: infaq.note,
-				};
-				if (editing?.type === "infaq")
-					await updateInfaqPayment(editing.id, payload);
-				else await createInfaqPayment(payload);
+			if (!selectedCharge) throw new Error("Pilih tagihan terlebih dahulu");
+			if (selectedChargeIsPaid && editing?.type !== "charge") throw new Error("Tagihan ini sudah lunas");
+			if (chargeAmountInvalid) {
+				throw new Error(
+					selectedCharge.allow_installments === false
+						? "Tagihan ini harus dibayar lunas sesuai sisa tagihan"
+						: "Nominal bayar harus lebih dari 0 dan tidak boleh melebihi sisa tagihan",
+				);
 			}
-			setInfaq({
-				...infaq,
-				amount: settings?.default_monthly_infaq || "",
-				note: "",
-				full_period: false,
-			});
-			setEditing(null);
-			setToast("Pembayaran infaq tersimpan");
-			await refresh();
-		} catch (err) {
-			setError(err.message);
-		}
-	}
-
-	async function saveLks(event) {
-		event.preventDefault();
-		setError(null);
-		try {
+			const defaultSavingsNote = selectedCharge?.name
+				? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
+				: "Pembayaran tagihan dari tabungan";
 			const payload = {
 				student_id: student.id,
-				lks_bill_id: lks.lks_bill_id,
-				amount_paid: Number(lks.amount_paid),
-				payment_date: lks.payment_date,
-				payment_method: lks.payment_method,
-				status: inferLksStatus(lks.amount_paid),
-				note: lks.note,
+				charge_category_id: charge.charge_category_id,
+				amount_paid: Number(charge.amount_paid),
+				payment_date: charge.payment_date,
+				payment_method: charge.payment_method,
+				note:
+					charge.payment_method === "dari_tabungan"
+						? charge.note || defaultSavingsNote
+						: charge.note,
 			};
-			if (editing?.type === "lks") await updateLksPayment(editing.id, payload);
-			else await createLksPayment(payload);
-			setLks({ ...lks, amount_paid: "", note: "" });
+			if (editing?.type === "charge") await updateChargePayment(editing.id, payload);
+			else await createChargePayment(payload);
+			setCharge({ ...charge, amount_paid: "", note: "" });
 			setEditing(null);
-			setToast("Pembayaran LKS tersimpan");
+			setToast("Pembayaran tagihan tersimpan");
 			await refresh();
 		} catch (err) {
 			setError(err.message);
@@ -279,31 +229,24 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						<p className="mt-1 text-3xl font-bold">{formatRupiah(balance)}</p>
 					</>
 				) : null}
-				{active === "infaq" ? (
+				{active === "charge" ? (
 					<>
-						<p className="text-sm text-white/75">Status infaq {periodName}</p>
-						<p className="mt-1 text-2xl font-bold">
-							{paidInfaqMonths}/{infaqMonths} bulan lunas
-						</p>
-						<p className="mt-1 text-sm text-white/75">
-							{monthNames[Number(infaq.month) - 1] || `Bulan ${infaq.month}`}:{" "}
-							{selectedInfaq?.status
-								? selectedInfaq.status.replace("_", " ")
-								: "belum bayar"}
-						</p>
-					</>
-				) : null}
-				{active === "lks" ? (
-					<>
-						<p className="text-sm text-white/75">Status LKS siswa</p>
-						<p className="mt-1 text-2xl font-bold">
-							{formatRupiah(lksPaidTotal)} sudah dibayar
-						</p>
-						<p className="mt-1 text-sm text-white/75">
-							{lks.lks_bill_id
-								? `Sisa tagihan dipilih: ${formatRupiah(selectedBillRemaining)}`
-								: "Pilih tagihan untuk melihat sisa pembayaran"}
-						</p>
+						<p className="text-sm text-white/75">Status tagihan siswa</p>
+						<div className="mt-3 space-y-2">
+							{chargeSummaries.length ? chargeSummaries.map((item) => (
+								<div key={item.id} className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+									<div className="flex items-start justify-between gap-3">
+										<p className="text-sm font-semibold">{item.name}</p>
+										<p className="shrink-0 text-sm font-bold">{formatRupiah(item.remaining)}</p>
+									</div>
+									<p className="mt-1 text-xs text-white/75">
+										Sudah bayar {formatRupiah(item.paid)} dari {formatRupiah(item.amount)}
+									</p>
+								</div>
+							)) : (
+								<p className="text-sm text-white/75">Belum ada tagihan yang berlaku untuk siswa ini</p>
+							)}
+						</div>
 					</>
 				) : null}
 			</div>
@@ -318,9 +261,24 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					ref={formRef}
 					onSubmit={saveSavings}
 					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
+					{savingsLocked ? (
+						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2">
+							<p className="font-semibold">Tabungan tahun ajaran ini sudah dikunci.</p>
+							<p className="mt-1 text-xs">
+								Aksi pengambilan:{" "}
+								{yearEndAction?.action === "withdrawn"
+									? "diambil"
+									: yearEndAction?.action === "saved"
+										? "saldo disimpan"
+										: "diproses"}
+								. Gunakan tahun ajaran baru untuk input tabungan berikutnya.
+							</p>
+						</div>
+					) : null}
 					<FormField label="Jenis transaksi">
 						<select
 							className={inputClass}
+							disabled={savingsLocked}
 							value={savings.type}
 							onChange={(e) =>
 								setSavings({ ...savings, type: e.target.value })
@@ -335,6 +293,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							type="number"
 							min="1"
 							className={inputClass}
+							disabled={savingsLocked}
 							value={savings.amount}
 							onChange={(e) =>
 								setSavings({ ...savings, amount: e.target.value })
@@ -346,6 +305,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						<input
 							type="date"
 							className={inputClass}
+							disabled={savingsLocked}
 							value={savings.transaction_date}
 							onChange={(e) =>
 								setSavings({ ...savings, transaction_date: e.target.value })
@@ -356,206 +316,107 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					<FormField label="Keterangan">
 						<textarea
 							className={inputClass}
+							disabled={savingsLocked}
 							value={savings.note}
 							onChange={(e) => setSavings({ ...savings, note: e.target.value })}
 							placeholder="Contoh: dibayar oleh ibu"
 						/>
 					</FormField>
-					<button className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white sm:col-span-2">
-						{editing?.type === "savings"
-							? "Update Tabungan"
-							: "Simpan Tabungan"}
-					</button>
-				</form>
-			) : null}
-
-			{active === "infaq" ? (
-				<form
-					ref={formRef}
-					onSubmit={saveInfaq}
-					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
-					<div className="rounded-2xl bg-brand-50 p-3 text-sm text-brand-700 sm:col-span-2">
-						<p className="font-semibold">{periodName}</p>
-						<p className="text-xs text-brand-700/75">
-							Infaq dicatat berdasarkan tahun ajaran, bukan tahun kalender.
-						</p>
-					</div>
-					<label className="flex items-center gap-2 text-sm sm:col-span-2">
-						<input
-							type="checkbox"
-							checked={infaq.full_period}
-							onChange={(e) =>
-								setInfaq({
-									...infaq,
-									full_period: e.target.checked,
-									amount: e.target.checked
-										? fullPeriodTotal
-										: settings?.default_monthly_infaq || "",
-								})
-							}
-						/>{" "}
-						Bayar penuh 1 tahun ajaran
-					</label>
-					{!infaq.full_period ? (
-						<FormField label="Bulan">
-							<select
-								className={inputClass}
-								value={infaq.month}
-								onChange={(e) => setInfaq({ ...infaq, month: e.target.value })}>
-								{monthNames.map((name, index) => (
-									<option key={name} value={index + 1}>
-										{name}
-									</option>
-								))}
-							</select>
-						</FormField>
-					) : null}
-					{infaq.full_period ? (
-						<p className="text-sm text-slate-500 sm:col-span-2">
-							Belum lunas: {unpaidInfaqMonths.length} bulan. Nominal otomatis:{" "}
-							{formatRupiah(fullPeriodTotal)}.
-						</p>
-					) : null}
-					<FormField
-						label={infaq.full_period ? "Nominal total tahun ajaran" : "Nominal"}>
-						<input
-							ref={amountRef}
-							type="number"
-							min="1"
-							className={inputClass}
-							disabled={!editing && !infaq.full_period && selectedInfaqIsLunas}
-							placeholder={
-								infaq.full_period
-									? String(fullPeriodTotal)
-									: String(monthlyInfaq || "")
-							}
-							value={infaq.amount}
-							onChange={(e) => setInfaq({ ...infaq, amount: e.target.value })}
-							required
-						/>
-					</FormField>
-					{!infaq.full_period ? (
-						<p className="self-end text-sm text-slate-500">
-							Status otomatis:{" "}
-							{inferInfaqStatus(infaq.amount).replace("_", " ")}
-						</p>
-					) : null}
-					<FormField label="Keterangan">
-						<textarea
-							className={inputClass}
-							value={infaq.note}
-							onChange={(e) => setInfaq({ ...infaq, note: e.target.value })}
-						/>
-					</FormField>
-					{!editing && !infaq.full_period && selectedInfaqIsLunas ? (
-						<p className="text-sm text-emerald-700 sm:col-span-2">
-							Bulan ini sudah lunas. Gunakan Edit di history untuk koreksi.
-						</p>
-					) : null}
 					<button
-						disabled={!editing && !infaq.full_period && selectedInfaqIsLunas}
+						disabled={savingsLocked}
 						className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-50 sm:col-span-2">
-						{editing?.type === "infaq" ? "Update Infaq" : "Simpan Infaq"}
+						{savingsLocked
+							? "Tabungan Dikunci"
+							: editing?.type === "savings"
+								? "Update Tabungan"
+								: "Simpan Tabungan"}
 					</button>
 				</form>
 			) : null}
 
-			{active === "lks" ? (
+			{active === "charge" ? (
 				<form
 					ref={formRef}
-					onSubmit={saveLks}
+					onSubmit={saveCharge}
 					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
-					<FormField label="Tagihan LKS">
+					<FormField label="Tagihan">
 						<select
 							className={inputClass}
-							value={lks.lks_bill_id}
-							onChange={(e) =>
-								setLks({
-									...lks,
-									lks_bill_id: e.target.value,
-									amount_paid: e.target.value
-										? String(
-												Math.max(
-													(bills
-														.find((bill) => bill.id === e.target.value)
-														?.class_amounts?.find(
-															(item) =>
-																item.class_id ===
-																(student.current_class_id ||
-																	student.current_class?.id),
-														)?.amount ||
-														bills.find((bill) => bill.id === e.target.value)
-															?.total_amount ||
-														0) -
-														lksRows
-															.filter(
-																(row) => row.lks_bill_id === e.target.value,
-															)
-															.reduce(
-																(sum, row) =>
-																	sum + Number(row.amount_paid || 0),
-																0,
-															),
-													0,
-												),
-											)
-										: "",
-								})
-							}
+							value={charge.charge_category_id}
+							onChange={(e) => {
+								const category = eligibleChargeCategories.find((item) => item.id === e.target.value);
+								const paid = chargeRows
+									.filter((row) => row.charge_category_id === e.target.value)
+									.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0);
+								const remaining = Math.max(Number(category?.amount || 0) - paid, 0);
+								setCharge({
+									...charge,
+									charge_category_id: e.target.value,
+									amount_paid: e.target.value ? String(remaining) : "",
+								});
+							}}
 							required>
 							<option value="">Pilih tagihan</option>
-							{bills.map((bill) => {
-								const classAmount = bill.class_amounts?.find(
-									(item) =>
-										item.class_id ===
-										(student.current_class_id || student.current_class?.id),
-								);
-								return (
-									<option key={bill.id} value={bill.id}>
-										{bill.name} (Semester {bill.semester || 1}) -{" "}
-										{formatRupiah(classAmount?.amount || bill.total_amount)}
-									</option>
-								);
-							})}
+							{chargeSummaries.map((item) => (
+								<option key={item.id} value={item.id} disabled={item.remaining <= 0 && editing?.charge_category_id !== item.id}>
+									{item.name} - {item.remaining <= 0 ? "Lunas" : formatRupiah(item.remaining)}
+								</option>
+							))}
 						</select>
 					</FormField>
-					{suggestedLksAmount ? (
+					{selectedCharge ? (
 						<p className="self-end text-sm text-slate-500">
-							Tagihan: {formatRupiah(suggestedLksAmount)}
+							Tagihan: {formatRupiah(selectedCharge.amount)}
+						</p>
+					) : null}
+					{!eligibleChargeCategories.length ? (
+						<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2">
+							Belum ada tagihan yang berlaku untuk siswa ini.
 						</p>
 					) : null}
 					<FormField label="Nominal bayar">
 						<input
 							ref={amountRef}
 							type="number"
-							min="1"
+							min={selectedCharge?.allow_installments === false ? chargeAvailableToPay || 1 : 1}
+							max={chargeAvailableToPay || undefined}
 							className={inputClass}
-							disabled={!editing && !lks.lks_bill_id}
-							value={lks.amount_paid}
-							onChange={(e) => setLks({ ...lks, amount_paid: e.target.value })}
+							disabled={selectedChargeIsPaid || (!editing && !charge.charge_category_id)}
+							value={charge.amount_paid}
+							onChange={(e) => setCharge({ ...charge, amount_paid: e.target.value })}
 							required
 						/>
 					</FormField>
+					{selectedCharge ? (
+						<p className={`self-end text-sm ${chargeAmountInvalid ? "text-red-600" : "text-slate-500"}`}>
+							{selectedCharge.allow_installments === false
+								? `Harus lunas: ${formatRupiah(chargeAvailableToPay)}`
+								: `Maksimal bayar: ${formatRupiah(chargeAvailableToPay)}`}
+						</p>
+					) : null}
 					<FormField label="Tanggal bayar">
 						<input
 							type="date"
 							className={inputClass}
-							value={lks.payment_date}
-							onChange={(e) => setLks({ ...lks, payment_date: e.target.value })}
+							value={charge.payment_date}
+							onChange={(e) => setCharge({ ...charge, payment_date: e.target.value })}
 						/>
 					</FormField>
 					<FormField label="Metode">
 						<select
 							className={inputClass}
-							value={lks.payment_method}
+							disabled={editing?.type === "charge"}
+							value={charge.payment_method}
 							onChange={(e) =>
-								setLks({
-									...lks,
+								setCharge({
+									...charge,
 									payment_method: e.target.value,
 									note:
-										e.target.value === "dari_tabungan" && !lks.note
-											? "bayar LKS mengambil dari saldo tabungan"
-											: lks.note,
+										e.target.value === "dari_tabungan" && !charge.note
+											? selectedCharge?.name
+												? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
+												: "Pembayaran tagihan dari tabungan"
+											: charge.note,
 								})
 							}>
 							<option value="tunai">Tunai</option>
@@ -563,38 +424,42 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						</select>
 					</FormField>
 					<p className="self-end text-sm text-slate-500">
-						Status otomatis: {inferLksStatus(lks.amount_paid).replace("_", " ")}
+						Sisa setelah bayar: {formatRupiah(Math.max(chargeAvailableToPay - Number(charge.amount_paid || 0), 0))}
 					</p>
 					<FormField label="Keterangan">
 						<textarea
 							className={inputClass}
-							placeholder={
-								lks.payment_method === "dari_tabungan"
-									? "mengambil dari saldo tabungan"
-									: ""
-							}
-							value={lks.note}
-							onChange={(e) => setLks({ ...lks, note: e.target.value })}
+							placeholder={charge.payment_method === "dari_tabungan" ? selectedCharge?.name ? `Pembayaran tagihan ${selectedCharge.name} dari tabungan` : "Pembayaran tagihan dari tabungan" : ""}
+							value={charge.note}
+							onChange={(e) => setCharge({ ...charge, note: e.target.value })}
 						/>
 					</FormField>
-					{!editing && selectedBillIsLunas ? (
-						<p className="text-sm text-emerald-700 sm:col-span-2">
-							Tagihan ini sudah lunas. Gunakan Edit di history untuk koreksi.
-						</p>
-					) : null}
 					<button
-						disabled={!editing && selectedBillIsLunas}
+						disabled={chargeAmountInvalid || selectedChargeIsPaid || (!editing && !charge.charge_category_id)}
 						className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-50 sm:col-span-2">
-						{editing?.type === "lks" ? "Update LKS" : "Simpan LKS"}
+						{selectedChargeIsPaid ? "Tagihan Lunas" : editing?.type === "charge" ? "Update Tagihan" : "Simpan Tagihan"}
 					</button>
 				</form>
 			) : null}
 
 			{active === "savings" ? (
 				<HistoryList
-					rows={savingsRows.slice(0, 8)}
+					rows={savingsRows}
 					type="savings"
 					onEdit={(row) => {
+						if (savingsLocked) {
+							setError(savingsLockedMessage);
+							return;
+						}
+						const chargePayment = Array.isArray(row.charge_payment)
+							? row.charge_payment[0]
+							: row.charge_payment;
+						if (chargePayment?.id) {
+							setError(
+								"Transaksi tarik tabungan ini berasal dari pembayaran tagihan, jadi tidak bisa diedit langsung. Silakan koreksi pembayaran tagihan atau hubungi admin.",
+							);
+							return;
+						}
 						setEditing({ type: "savings", id: row.id });
 						setSavings({
 							type: row.type,
@@ -606,37 +471,25 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					}}
 				/>
 			) : null}
-			{active === "infaq" ? (
+			{active === "charge" ? (
 				<HistoryList
-					rows={infaqRows.slice(0, 12)}
-					type="infaq"
-					monthNames={monthNames}
+					rows={chargeRows}
+					type="charge"
 					onEdit={(row) => {
-						setEditing({ type: "infaq", id: row.id });
-						setInfaq({
-							month: row.month,
-							amount: row.amount,
-							note: row.note || "",
-							full_period: false,
-						});
-						focusInputSection();
-					}}
-				/>
-			) : null}
-			{active === "lks" ? (
-				<HistoryList
-					rows={lksRows.slice(0, 8)}
-					type="lks"
-					onEdit={(row) => {
-						if (row.payment_method === "dari_tabungan") {
+						if (row.savings_transaction_id) {
 							setError(
-								"Pembayaran LKS dari tabungan tidak diedit langsung agar saldo tetap konsisten. Buat koreksi transaksi baru atau hubungi admin.",
+								"Pembayaran tagihan dari tabungan tidak diedit langsung agar saldo tetap konsisten. Buat koreksi transaksi baru atau hubungi admin.",
 							);
 							return;
 						}
-						setEditing({ type: "lks", id: row.id });
-						setLks({
-							lks_bill_id: row.lks_bill_id,
+						setEditing({
+							type: "charge",
+							id: row.id,
+							originalAmount: row.amount_paid,
+							charge_category_id: row.charge_category_id,
+						});
+						setCharge({
+							charge_category_id: row.charge_category_id,
 							amount_paid: row.amount_paid,
 							payment_date: row.payment_date,
 							payment_method: row.payment_method,
@@ -650,18 +503,53 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	);
 }
 
-function HistoryList({ rows, type, onEdit, monthNames = [] }) {
+function HistoryList({ rows, type, onEdit }) {
+	const [page, setPage] = useState(1);
+	const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
+	const pageSize = 5;
+	const filteredRows = rows.filter((row) => {
+		const date = historyRawDate(row, type);
+		if (dateFilter.start && date < dateFilter.start) return false;
+		if (dateFilter.end && date > dateFilter.end) return false;
+		return true;
+	});
+	const totalPages = Math.max(Math.ceil(filteredRows.length / pageSize), 1);
+	const currentPage = Math.min(page, totalPages);
+	const pagedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
 	return (
 		<section className="rounded-[22px] border border-white/80 bg-white p-4 shadow-soft">
-			<h3 className="mb-3 font-bold text-slate-950">History</h3>
+			<div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<h3 className="font-bold text-slate-950">History</h3>
+				<div className="grid gap-2 sm:grid-cols-2">
+					<input
+						type="date"
+						className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+						value={dateFilter.start}
+						onChange={(e) => {
+							setDateFilter({ ...dateFilter, start: e.target.value });
+							setPage(1);
+						}}
+					/>
+					<input
+						type="date"
+						className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+						value={dateFilter.end}
+						onChange={(e) => {
+							setDateFilter({ ...dateFilter, end: e.target.value });
+							setPage(1);
+						}}
+					/>
+				</div>
+			</div>
 			<div className="space-y-3">
-				{rows.length ? (
-					rows.map((row) => (
+				{pagedRows.length ? (
+					pagedRows.map((row) => (
 						<div key={row.id} className="rounded-2xl bg-slate-50 p-3 text-sm">
 							<div className="flex items-start justify-between gap-3">
 								<div>
 									<p className="font-semibold text-slate-900">
-										{historyTitle(row, type, monthNames)}
+										{historyTitle(row, type)}
 									</p>
 									<p className="text-xs text-slate-500">
 										{historyDate(row, type)}
@@ -674,31 +562,66 @@ function HistoryList({ rows, type, onEdit, monthNames = [] }) {
 							<p className="mt-2 text-xs text-slate-500">
 								{row.note || "Tanpa keterangan"}
 							</p>
-							<button
-								className="mt-2 text-xs font-semibold text-brand-700"
-								onClick={() => onEdit(row)}>
-								Edit
-							</button>
+							{type === "savings" && getLinkedChargePayment(row)?.id ? (
+								<p className="mt-2 text-xs font-semibold text-amber-700">
+									Terkunci: pembayaran tagihan {getLinkedChargePayment(row)?.category?.name || ""}
+								</p>
+							) : (
+								<button
+									className="mt-2 text-xs font-semibold text-brand-700"
+									onClick={() => onEdit(row)}>
+									Edit
+								</button>
+							)}
 						</div>
 					))
 				) : (
 					<p className="text-sm text-slate-500">Belum ada history.</p>
 				)}
 			</div>
+			{filteredRows.length > pageSize ? (
+				<div className="mt-4 flex items-center justify-between gap-3 text-sm">
+					<button
+						className="rounded-lg border border-slate-200 px-3 py-2 font-semibold disabled:opacity-40"
+						disabled={currentPage <= 1}
+						onClick={() => setPage(currentPage - 1)}>
+						Sebelumnya
+					</button>
+					<span className="text-slate-500">
+						Halaman {currentPage}/{totalPages}
+					</span>
+					<button
+						className="rounded-lg border border-slate-200 px-3 py-2 font-semibold disabled:opacity-40"
+						disabled={currentPage >= totalPages}
+						onClick={() => setPage(currentPage + 1)}>
+						Berikutnya
+					</button>
+				</div>
+			) : null}
 		</section>
 	);
 }
 
-function historyTitle(row, type, monthNames = []) {
+function getLinkedChargePayment(row) {
+	return Array.isArray(row.charge_payment) ? row.charge_payment[0] : row.charge_payment;
+}
+
+function historyTitle(row, type) {
 	if (type === "savings")
 		return row.type === "tarik" ? "Tarik tabungan" : "Setor tabungan";
-	if (type === "infaq")
-		return `Infaq ${monthNames[Number(row.month) - 1] || `bulan ${row.month}`} - ${row.status?.replace("_", " ") || "-"}`;
-	return `${row.bill?.name || "Pembayaran LKS"} - ${row.status?.replace("_", " ") || "-"}`;
+	if (type === "charge")
+		return row.category?.name || "Pembayaran tagihan";
+	return "Pembayaran";
 }
 
 function historyDate(row, type) {
 	if (type === "savings") return formatDateId(row.transaction_date);
-	if (type === "lks") return formatDateId(row.payment_date);
-	return row.period?.name || "-";
+	if (type === "charge") return formatDateId(row.payment_date);
+	return row.period?.name || formatDateId(row.created_at) || "-";
+}
+
+function historyRawDate(row, type) {
+	if (type === "savings") return row.transaction_date || "";
+	if (type === "charge") return row.payment_date || "";
+	return row.created_at?.slice(0, 10) || "";
 }

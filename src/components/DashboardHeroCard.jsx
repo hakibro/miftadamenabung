@@ -1,7 +1,7 @@
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
 
-export default function DashboardHeroCard({ title = 'Total Balance', amount, income, expense, helper }) {
+export default function DashboardHeroCard({ title = 'Total Balance', amount, income, expense, helper, incomeLabel = 'Pemasukan', expenseLabel = 'Pengeluaran' }) {
   return (
     <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-700 via-brand-600 to-[#8f28ff] p-5 text-white shadow-glow sm:p-6">
       <div className="absolute inset-0 opacity-20">
@@ -16,14 +16,14 @@ export default function DashboardHeroCard({ title = 'Total Balance', amount, inc
           <div className="min-w-0">
             <div className="flex items-center gap-1 text-xs text-white/75">
               <ArrowDownLeft size={14} className="text-candy-mint" />
-              Pemasukan
+              {incomeLabel}
             </div>
             <p className="mt-1 truncate text-base font-semibold">{formatRupiah(income)}</p>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1 text-xs text-white/75">
               <ArrowUpRight size={14} className="text-candy-pink" />
-              Pengeluaran
+              {expenseLabel}
             </div>
             <p className="mt-1 truncate text-base font-semibold">{formatRupiah(expense)}</p>
           </div>
