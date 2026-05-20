@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { GraduationCap, Receipt, WalletCards } from "lucide-react";
-import StatCard from "../../components/StatCard";
 import DataTable from "../../components/DataTable";
 import { useAuth } from "../../contexts/AuthContext";
 import { listStudents } from "../../services/masterDataService";
@@ -54,33 +53,33 @@ export default function WalasDashboard() {
 
 	return (
 		<div className="walas-dashboard space-y-5">
-			<div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
-				<StatCard
+			<div className="flex flex-wrap gap-3">
+				<WalasStatCard
 					title="Siswa Aktif"
 					value={students.length}
 					icon={GraduationCap}
 				/>
-				<StatCard
+				<WalasStatCard
 					title="Tabungan Kelas"
 					value={formatRupiah(summary.savings_balance)}
 					icon={WalletCards}
 				/>
-				<StatCard
+				<WalasStatCard
 					title="Setor"
 					value={formatRupiah(summary.savings_deposit || 0)}
 					icon={WalletCards}
 				/>
-				<StatCard
+				<WalasStatCard
 					title="Tarik"
 					value={formatRupiah(summary.savings_withdrawal || 0)}
 					icon={WalletCards}
 				/>
-				<StatCard
+				<WalasStatCard
 					title="Tagihan Sudah Bayar"
 					value={formatRupiah(chargeSummary.paid)}
 					icon={Receipt}
 				/>
-				<StatCard
+				<WalasStatCard
 					title="Tagihan Belum Lunas"
 					value={formatRupiah(chargeSummary.unpaid)}
 					icon={Receipt}
@@ -140,6 +139,24 @@ export default function WalasDashboard() {
 					/>
 				</div>
 			</section>
+		</div>
+	);
+}
+
+function WalasStatCard({ title, value, icon: Icon }) {
+	return (
+		<div className="min-h-[116px] min-w-0 basis-[calc(50%-0.375rem)] rounded-2xl border border-slate-100 bg-white p-3 xl:basis-[calc(25%-0.5625rem)]">
+			<div className="flex h-full flex-col justify-between gap-3">
+				<div className="flex items-start justify-between gap-2">
+					<p className="min-w-0 text-xs leading-snug text-slate-500">{title}</p>
+					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+						<Icon size={18} />
+					</span>
+				</div>
+				<p className="break-words text-lg font-bold leading-tight text-slate-950">
+					{value}
+				</p>
+			</div>
 		</div>
 	);
 }

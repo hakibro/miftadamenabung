@@ -96,6 +96,5 @@ textarea {
 	.walas-dashboard > div {
 		transform: none !important;
 		will-change: auto !important;
-		contain: layout paint;
 	}
 }
