@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { GraduationCap, Receipt, WalletCards } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, GraduationCap, Receipt, WalletCards } from 'lucide-react';
 import DataTable from '../../components/DataTable';
-import DashboardHeroCard from '../../components/DashboardHeroCard';
 import { useAuth } from '../../contexts/AuthContext';
 import { listStudents } from '../../services/masterDataService';
 import { getFinanceSummary, listChargeCategories, listChargePayments } from '../../services/financeService';
@@ -44,8 +43,8 @@ export default function WalasDashboard() {
 
   return (
     <div className="flex min-w-0 flex-col gap-5 overflow-hidden">
-      <div className="grid gap-4 xl:grid-cols-2">
-        <DashboardHeroCard
+      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+        <WalasSummaryCard
           title="Tabungan Kelas"
           amount={summary.savings_balance}
           income={summary.savings_deposit || 0}
@@ -54,7 +53,7 @@ export default function WalasDashboard() {
           expenseLabel="Tarik"
           helper={`${students.length} siswa aktif`}
         />
-        <DashboardHeroCard
+        <WalasSummaryCard
           title="Tagihan Kelas"
           amount={chargeSummary.unpaid}
           income={chargeSummary.paid}
@@ -104,6 +103,32 @@ export default function WalasDashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+function WalasSummaryCard({ title, amount, helper, income, expense, incomeLabel, expenseLabel }) {
+  return (
+    <section className="min-w-0 rounded-[28px] bg-brand-600 p-5 text-white shadow-sm sm:p-6 sm:shadow-glow">
+      <p className="text-sm font-medium text-white/80">{title}</p>
+      <p className="mt-2 break-words text-3xl font-bold leading-tight tracking-normal sm:text-4xl">{formatRupiah(amount)}</p>
+      {helper ? <p className="mt-1 text-sm text-white/75">{helper}</p> : null}
+      <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 rounded-2xl bg-white/12 p-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1 text-xs text-white/75">
+            <ArrowDownLeft size={14} className="text-candy-mint" />
+            <span className="truncate">{incomeLabel}</span>
+          </div>
+          <p className="mt-1 truncate text-base font-semibold">{formatRupiah(income)}</p>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1 text-xs text-white/75">
+            <ArrowUpRight size={14} className="text-candy-pink" />
+            <span className="truncate">{expenseLabel}</span>
+          </div>
+          <p className="mt-1 truncate text-base font-semibold">{formatRupiah(expense)}</p>
+        </div>
+      </div>
+    </section>
   );
 }
 
