@@ -93,7 +93,7 @@ export default function WalasDashboard() {
 						students.slice(0, 8).map((student) => (
 							<article
 								key={student.id}
-								className="min-w-0 rounded-2xl border border-white/80 bg-white p-4 shadow-soft">
+								className="min-w-0 rounded-2xl border border-white/80 bg-white p-4 shadow-sm md:shadow-soft">
 								<div className="flex items-start justify-between gap-3">
 									<div className="min-w-0">
 										<p className="break-words text-base font-bold leading-snug text-slate-950">
@@ -113,7 +113,7 @@ export default function WalasDashboard() {
 							</article>
 						))
 					) : (
-						<div className="rounded-2xl border border-white/80 bg-white p-4 text-sm text-slate-500 shadow-soft">
+						<div className="rounded-2xl border border-white/80 bg-white p-4 text-sm text-slate-500 shadow-sm md:shadow-soft">
 							Belum ada siswa.
 						</div>
 					)}
