@@ -57,7 +57,7 @@ export default function AppLayout() {
   const { settings } = useSettings();
   const location = useLocation();
   const nav = navByRole[profile?.role] ?? [];
-  const mobileNav = nav.filter((item) => item.mobile).slice(0, 5);
+  const mobileNav = nav;
   const pageTitle = nav.find((item) => location.pathname.startsWith(item.to))?.label || 'Dashboard';
   const appName = settings?.app_name || 'Sistem Keuangan Kelas';
   const schoolName = settings?.school_name || 'Administrasi sekolah';
@@ -124,7 +124,7 @@ export default function AppLayout() {
       </div>
 
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] lg:hidden">
-        <div className="mx-auto grid max-w-md gap-1 rounded-[26px] border border-white/80 bg-white/95 p-2 shadow-soft backdrop-blur" style={{ gridTemplateColumns: `repeat(${Math.max(mobileNav.length, 1)}, minmax(0, 1fr))` }}>
+        <div className="mx-auto flex max-w-md gap-1 overflow-x-auto rounded-[26px] border border-white/80 bg-white/95 p-2 shadow-soft backdrop-blur">
           {mobileNav.map((item) => {
             const Icon = item.icon;
             return (
@@ -132,7 +132,7 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-medium transition ${
+                  `flex min-h-[56px] min-w-[78px] flex-col items-center justify-center gap-1 rounded-2xl px-2 text-[11px] font-medium transition ${
                     isActive ? 'bg-brand-600 text-white shadow-glow' : 'text-slate-500 hover:bg-brand-50 hover:text-brand-700'
                   }`
                 }
