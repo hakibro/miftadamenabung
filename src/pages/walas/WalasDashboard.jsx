@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { GraduationCap, Receipt, WalletCards } from 'lucide-react';
-import StatCard from '../../components/StatCard';
 import DataTable from '../../components/DataTable';
 import DashboardHeroCard from '../../components/DashboardHeroCard';
 import { useAuth } from '../../contexts/AuthContext';
@@ -65,11 +64,11 @@ export default function WalasDashboard() {
           helper="Sisa tagihan siswa pada tahun ajaran aktif"
         />
       </div>
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Siswa Aktif" value={students.length} icon={GraduationCap} />
-        <StatCard title="Tabungan Kelas" value={formatRupiah(summary.savings_balance)} icon={WalletCards} />
-        <StatCard title="Tagihan Sudah Bayar" value={formatRupiah(chargeSummary.paid)} icon={Receipt} />
-        <StatCard title="Tagihan Belum Lunas" value={formatRupiah(chargeSummary.unpaid)} icon={Receipt} />
+      <div className="flex min-w-0 flex-col gap-3 sm:grid sm:grid-cols-2 xl:grid-cols-4">
+        <MobileSafeStat title="Siswa Aktif" value={students.length} icon={GraduationCap} />
+        <MobileSafeStat title="Tabungan Kelas" value={formatRupiah(summary.savings_balance)} icon={WalletCards} />
+        <MobileSafeStat title="Tagihan Sudah Bayar" value={formatRupiah(chargeSummary.paid)} icon={Receipt} />
+        <MobileSafeStat title="Tagihan Belum Lunas" value={formatRupiah(chargeSummary.unpaid)} icon={Receipt} />
       </div>
       <section className="relative z-0 min-w-0">
         <h2 className="mb-3 text-lg font-bold text-slate-950">Siswa kelas</h2>
@@ -105,6 +104,22 @@ export default function WalasDashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+function MobileSafeStat({ title, value, icon: Icon }) {
+  return (
+    <article className="relative min-w-0 overflow-hidden rounded-[22px] border border-white/80 bg-white p-4 shadow-sm sm:shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm text-slate-500">{title}</p>
+          <p className="mt-2 break-words text-xl font-bold leading-tight text-slate-950">{value}</p>
+        </div>
+        <div className="shrink-0 rounded-2xl bg-brand-50 p-2.5 text-brand-700">
+          <Icon size={20} />
+        </div>
+      </div>
+    </article>
   );
 }
 
