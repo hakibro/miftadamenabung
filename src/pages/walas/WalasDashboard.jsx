@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GraduationCap, Receipt, WalletCards } from 'lucide-react';
+import StatCard from '../../components/StatCard';
 import DataTable from '../../components/DataTable';
 import { useAuth } from '../../contexts/AuthContext';
 import { listStudents } from '../../services/masterDataService';
@@ -42,14 +43,14 @@ export default function WalasDashboard() {
   }, [profile?.assigned_class_id]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-5 overflow-hidden">
-      <div className="grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-4">
-        <MobileSafeStat title="Siswa Aktif" value={students.length} icon={GraduationCap} />
-        <MobileSafeStat title="Tabungan Kelas" value={formatRupiah(summary.savings_balance)} icon={WalletCards} />
-        <MobileSafeStat title="Setor" value={formatRupiah(summary.savings_deposit || 0)} icon={WalletCards} />
-        <MobileSafeStat title="Tarik" value={formatRupiah(summary.savings_withdrawal || 0)} icon={WalletCards} />
-        <MobileSafeStat title="Tagihan Sudah Bayar" value={formatRupiah(chargeSummary.paid)} icon={Receipt} />
-        <MobileSafeStat title="Tagihan Belum Lunas" value={formatRupiah(chargeSummary.unpaid)} icon={Receipt} />
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard title="Siswa Aktif" value={students.length} icon={GraduationCap} />
+        <StatCard title="Tabungan Kelas" value={formatRupiah(summary.savings_balance)} icon={WalletCards} />
+        <StatCard title="Setor" value={formatRupiah(summary.savings_deposit || 0)} icon={WalletCards} />
+        <StatCard title="Tarik" value={formatRupiah(summary.savings_withdrawal || 0)} icon={WalletCards} />
+        <StatCard title="Tagihan Sudah Bayar" value={formatRupiah(chargeSummary.paid)} icon={Receipt} />
+        <StatCard title="Tagihan Belum Lunas" value={formatRupiah(chargeSummary.unpaid)} icon={Receipt} />
       </div>
       <section className="relative z-0 min-w-0">
         <h2 className="mb-3 text-lg font-bold text-slate-950">Siswa kelas</h2>
@@ -85,22 +86,6 @@ export default function WalasDashboard() {
         </div>
       </section>
     </div>
-  );
-}
-
-function MobileSafeStat({ title, value, icon: Icon }) {
-  return (
-    <article className="relative min-w-0 overflow-hidden rounded-[18px] border border-white/80 bg-white p-3 shadow-sm sm:rounded-[22px] sm:p-4 sm:shadow-soft">
-      <div className="flex min-h-[104px] flex-col justify-between gap-3 sm:min-h-0 sm:flex-row sm:items-start">
-        <div className="min-w-0">
-          <p className="text-xs leading-snug text-slate-500 sm:text-sm">{title}</p>
-          <p className="mt-2 break-words text-lg font-bold leading-tight text-slate-950 sm:text-xl">{value}</p>
-        </div>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 sm:h-auto sm:w-auto sm:p-2.5">
-          <Icon size={18} />
-        </div>
-      </div>
-    </article>
   );
 }
 
