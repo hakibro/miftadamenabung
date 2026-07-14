@@ -4,6 +4,8 @@ import Toast from "./Toast";
 import {
 	createChargePayment,
 	createSavingsTransaction,
+	deleteChargePayment,
+	deleteSavingsTransaction,
 	getSavingsBalance,
 	listChargeCategories,
 	listChargePayments,
@@ -12,7 +14,12 @@ import {
 	updateChargePayment,
 	updateSavingsTransaction,
 } from "../services/financeService";
-import { todayISO, formatRupiah, formatDateId } from "../utils/formatters";
+import {
+	todayISO,
+	formatRupiah,
+	formatDateId,
+	parseNumericInput,
+} from "../utils/formatters";
 
 const tabs = [
 	{ id: "savings", label: "Tabungan" },
@@ -28,6 +35,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	const [chargeRows, setChargeRows] = useState([]);
 	const [toast, setToast] = useState(null);
 	const [error, setError] = useState(null);
+	const [saving, setSaving] = useState(false);
 	const amountRef = useRef(null);
 	const formRef = useRef(null);
 	const [savings, setSavings] = useState({
@@ -50,14 +58,25 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	});
 	function chargeAppliesToStudent(category) {
 		if (!category) return false;
-		const gradeSet = new Set((category.grades || []).map((item) => Number(item.grade)));
+		const gradeSet = new Set(
+			(category.grades || []).map((item) => Number(item.grade)),
+		);
 		if (category.period_id !== activePeriodId) return false;
-		if (gradeSet.size && !gradeSet.has(Number(student.current_class?.grade))) return false;
-		if (category.gender_scope !== "all" && student.gender !== category.gender_scope) return false;
+		if (gradeSet.size && !gradeSet.has(Number(student.current_class?.grade)))
+			return false;
+		if (
+			category.gender_scope !== "all" &&
+			student.gender !== category.gender_scope
+		)
+			return false;
 		return true;
 	}
-	const eligibleChargeCategories = chargeCategories.filter(chargeAppliesToStudent);
-	const selectedCharge = eligibleChargeCategories.find((item) => item.id === charge.charge_category_id);
+	const eligibleChargeCategories = chargeCategories.filter(
+		chargeAppliesToStudent,
+	);
+	const selectedCharge = eligibleChargeCategories.find(
+		(item) => item.id === charge.charge_category_id,
+	);
 	const chargeSummaries = eligibleChargeCategories.map((category) => {
 		const paid = chargeRows
 			.filter((row) => row.charge_category_id === category.id)
@@ -80,17 +99,21 @@ export default function TransactionTabs({ student, method = "manual" }) {
 		0,
 	);
 	const editingChargeOriginalAmount =
-		editing?.type === "charge" && editing.charge_category_id === charge.charge_category_id
+		editing?.type === "charge" &&
+		editing.charge_category_id === charge.charge_category_id
 			? Number(editing.originalAmount || 0)
 			: 0;
-	const chargeAvailableToPay = selectedChargeRemaining + editingChargeOriginalAmount;
-	const selectedChargeIsPaid = Boolean(selectedCharge) && chargeAvailableToPay <= 0;
+	const chargeAvailableToPay =
+		selectedChargeRemaining + editingChargeOriginalAmount;
+	const selectedChargeIsPaid =
+		Boolean(selectedCharge) && chargeAvailableToPay <= 0;
 	const chargeAmountValue = Number(charge.amount_paid || 0);
 	const chargeAmountInvalid =
 		Boolean(selectedCharge) &&
 		(chargeAmountValue <= 0 ||
 			chargeAmountValue > chargeAvailableToPay ||
-			(selectedCharge.allow_installments === false && chargeAmountValue !== chargeAvailableToPay));
+			(selectedCharge.allow_installments === false &&
+				chargeAmountValue !== chargeAvailableToPay));
 	async function refresh() {
 		if (!student?.id) return;
 		const [
@@ -99,19 +122,21 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			nextYearEndActions,
 			nextCharges,
 			nextChargeRows,
-		] =
-			await Promise.all([
-				getSavingsBalance(student.id, activePeriodId),
-				listSavingsTransactions({ studentId: student.id, periodId: activePeriodId }),
-				activePeriodId
-					? listSavingsYearEndActions({
-							studentId: student.id,
-							periodId: activePeriodId,
-						})
-					: Promise.resolve([]),
-				listChargeCategories({ periodId: activePeriodId }),
-				listChargePayments({ studentId: student.id, periodId: activePeriodId }),
-			]);
+		] = await Promise.all([
+			getSavingsBalance(student.id, activePeriodId),
+			listSavingsTransactions({
+				studentId: student.id,
+				periodId: activePeriodId,
+			}),
+			activePeriodId
+				? listSavingsYearEndActions({
+						studentId: student.id,
+						periodId: activePeriodId,
+					})
+				: Promise.resolve([]),
+			listChargeCategories({ periodId: activePeriodId }),
+			listChargePayments({ studentId: student.id, periodId: activePeriodId }),
+		]);
 		setBalance(nextBalance);
 		setSavingsRows(nextSavings);
 		setYearEndAction(nextYearEndActions[0] || null);
@@ -140,6 +165,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			setError(savingsLockedMessage);
 			return;
 		}
+		setSaving(true);
 		try {
 			const payload = {
 				student_id: student.id,
@@ -165,15 +191,19 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			await refresh();
 		} catch (err) {
 			setError(err.message);
+		} finally {
+			setSaving(false);
 		}
 	}
 
 	async function saveCharge(event) {
 		event.preventDefault();
 		setError(null);
+		setSaving(true);
 		try {
 			if (!selectedCharge) throw new Error("Pilih tagihan terlebih dahulu");
-			if (selectedChargeIsPaid && editing?.type !== "charge") throw new Error("Tagihan ini sudah lunas");
+			if (selectedChargeIsPaid && editing?.type !== "charge")
+				throw new Error("Tagihan ini sudah lunas");
 			if (chargeAmountInvalid) {
 				throw new Error(
 					selectedCharge.allow_installments === false
@@ -195,7 +225,8 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						? charge.note || defaultSavingsNote
 						: charge.note,
 			};
-			if (editing?.type === "charge") await updateChargePayment(editing.id, payload);
+			if (editing?.type === "charge")
+				await updateChargePayment(editing.id, payload);
 			else await createChargePayment(payload);
 			setCharge({ ...charge, amount_paid: "", note: "" });
 			setEditing(null);
@@ -203,6 +234,8 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			await refresh();
 		} catch (err) {
 			setError(err.message);
+		} finally {
+			setSaving(false);
 		}
 	}
 
@@ -233,18 +266,27 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					<>
 						<p className="text-sm text-white/75">Status tagihan siswa</p>
 						<div className="mt-3 space-y-2">
-							{chargeSummaries.length ? chargeSummaries.map((item) => (
-								<div key={item.id} className="rounded-2xl bg-white/10 p-3 backdrop-blur">
-									<div className="flex items-start justify-between gap-3">
-										<p className="text-sm font-semibold">{item.name}</p>
-										<p className="shrink-0 text-sm font-bold">{formatRupiah(item.remaining)}</p>
+							{chargeSummaries.length ? (
+								chargeSummaries.map((item) => (
+									<div
+										key={item.id}
+										className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+										<div className="flex items-start justify-between gap-3">
+											<p className="text-sm font-semibold">{item.name}</p>
+											<p className="shrink-0 text-sm font-bold">
+												{formatRupiah(item.remaining)}
+											</p>
+										</div>
+										<p className="mt-1 text-xs text-white/75">
+											Sudah bayar {formatRupiah(item.paid)} dari{" "}
+											{formatRupiah(item.amount)}
+										</p>
 									</div>
-									<p className="mt-1 text-xs text-white/75">
-										Sudah bayar {formatRupiah(item.paid)} dari {formatRupiah(item.amount)}
-									</p>
-								</div>
-							)) : (
-								<p className="text-sm text-white/75">Belum ada tagihan yang berlaku untuk siswa ini</p>
+								))
+							) : (
+								<p className="text-sm text-white/75">
+									Belum ada tagihan yang berlaku untuk siswa ini
+								</p>
 							)}
 						</div>
 					</>
@@ -263,7 +305,9 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
 					{savingsLocked ? (
 						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2">
-							<p className="font-semibold">Tabungan tahun ajaran ini sudah dikunci.</p>
+							<p className="font-semibold">
+								Tabungan tahun ajaran ini sudah dikunci.
+							</p>
 							<p className="mt-1 text-xs">
 								Aksi pengambilan:{" "}
 								{yearEndAction?.action === "withdrawn"
@@ -275,6 +319,64 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							</p>
 						</div>
 					) : null}
+					{/* Nominal — large, prominen, auto-focus */}
+					<div className="sm:col-span-2">
+						<label className="mb-1.5 block text-sm font-medium text-slate-700">
+							Nominal
+						</label>
+						<div className="relative">
+							<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
+								Rp
+							</span>
+							<input
+								ref={amountRef}
+								type="text"
+								inputMode="numeric"
+								autoComplete="off"
+								disabled={savingsLocked}
+								value={
+									savings.amount
+										? Number(savings.amount).toLocaleString("id-ID")
+										: ""
+								}
+								onChange={(e) =>
+									setSavings({
+										...savings,
+										amount: parseNumericInput(e.target.value),
+									})
+								}
+								className="h-16 w-full rounded-2xl border-2 border-slate-200 bg-white pl-16 pr-6 text-right text-2xl font-bold text-slate-900 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 disabled:opacity-50"
+								placeholder="0"
+								required
+							/>
+						</div>
+						{savings.amount && Number(savings.amount) > 0 ? (
+							<p className="mt-2 text-right text-lg font-semibold text-brand-600">
+								{formatRupiah(savings.amount)}
+							</p>
+						) : null}
+						{/* Quick-amount chips */}
+						{!savingsLocked ? (
+							<div className="mt-3 flex flex-wrap gap-2">
+								{[5000, 10000, 20000, 50000].map((n) => (
+									<button
+										key={n}
+										type="button"
+										onClick={() =>
+											setSavings({ ...savings, amount: String(n) })
+										}
+										className={`rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all duration-150 ${
+											savings.amount === String(n)
+												? "border-brand-500 bg-brand-50 text-brand-700"
+												: "border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-600"
+										}`}>
+										{formatRupiah(n)}
+									</button>
+								))}
+							</div>
+						) : null}
+					</div>
+					<div className="border-t border-slate-100 pt-4 sm:col-span-2" />
 					<FormField label="Jenis transaksi">
 						<select
 							className={inputClass}
@@ -286,20 +388,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							<option value="setor">Setor</option>
 							<option value="tarik">Tarik</option>
 						</select>
-					</FormField>
-					<FormField label="Nominal">
-						<input
-							ref={amountRef}
-							type="number"
-							min="1"
-							className={inputClass}
-							disabled={savingsLocked}
-							value={savings.amount}
-							onChange={(e) =>
-								setSavings({ ...savings, amount: e.target.value })
-							}
-							required
-						/>
 					</FormField>
 					<FormField label="Tanggal">
 						<input
@@ -315,7 +403,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					</FormField>
 					<FormField label="Keterangan">
 						<textarea
-							className={inputClass}
+							className={inputClass + " resize-none"}
 							disabled={savingsLocked}
 							value={savings.note}
 							onChange={(e) => setSavings({ ...savings, note: e.target.value })}
@@ -323,13 +411,37 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						/>
 					</FormField>
 					<button
-						disabled={savingsLocked}
-						className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-50 sm:col-span-2">
-						{savingsLocked
-							? "Tabungan Dikunci"
-							: editing?.type === "savings"
-								? "Update Tabungan"
-								: "Simpan Tabungan"}
+						disabled={savingsLocked || saving}
+						className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2">
+						{saving ? (
+							<>
+								<svg
+									className="h-5 w-5 animate-spin"
+									viewBox="0 0 24 24"
+									fill="none">
+									<circle
+										className="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										strokeWidth="4"
+									/>
+									<path
+										className="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+									/>
+								</svg>
+								Menyimpan...
+							</>
+						) : savingsLocked ? (
+							"Tabungan Dikunci"
+						) : editing?.type === "savings" ? (
+							"Update Tabungan"
+						) : (
+							"Simpan Tabungan"
+						)}
 					</button>
 				</form>
 			) : null}
@@ -344,11 +456,16 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							className={inputClass}
 							value={charge.charge_category_id}
 							onChange={(e) => {
-								const category = eligibleChargeCategories.find((item) => item.id === e.target.value);
+								const category = eligibleChargeCategories.find(
+									(item) => item.id === e.target.value,
+								);
 								const paid = chargeRows
 									.filter((row) => row.charge_category_id === e.target.value)
 									.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0);
-								const remaining = Math.max(Number(category?.amount || 0) - paid, 0);
+								const remaining = Math.max(
+									Number(category?.amount || 0) - paid,
+									0,
+								);
 								setCharge({
 									...charge,
 									charge_category_id: e.target.value,
@@ -358,8 +475,15 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							required>
 							<option value="">Pilih tagihan</option>
 							{chargeSummaries.map((item) => (
-								<option key={item.id} value={item.id} disabled={item.remaining <= 0 && editing?.charge_category_id !== item.id}>
-									{item.name} - {item.remaining <= 0 ? "Lunas" : formatRupiah(item.remaining)}
+								<option
+									key={item.id}
+									value={item.id}
+									disabled={
+										item.remaining <= 0 &&
+										editing?.charge_category_id !== item.id
+									}>
+									{item.name} -{" "}
+									{item.remaining <= 0 ? "Lunas" : formatRupiah(item.remaining)}
 								</option>
 							))}
 						</select>
@@ -374,32 +498,77 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							Belum ada tagihan yang berlaku untuk siswa ini.
 						</p>
 					) : null}
-					<FormField label="Nominal bayar">
-						<input
-							ref={amountRef}
-							type="number"
-							min={selectedCharge?.allow_installments === false ? chargeAvailableToPay || 1 : 1}
-							max={chargeAvailableToPay || undefined}
-							className={inputClass}
-							disabled={selectedChargeIsPaid || (!editing && !charge.charge_category_id)}
-							value={charge.amount_paid}
-							onChange={(e) => setCharge({ ...charge, amount_paid: e.target.value })}
-							required
-						/>
-					</FormField>
-					{selectedCharge ? (
-						<p className={`self-end text-sm ${chargeAmountInvalid ? "text-red-600" : "text-slate-500"}`}>
-							{selectedCharge.allow_installments === false
-								? `Harus lunas: ${formatRupiah(chargeAvailableToPay)}`
-								: `Maksimal bayar: ${formatRupiah(chargeAvailableToPay)}`}
-						</p>
-					) : null}
+					{/* Nominal bayar — large & prominen */}
+					<div className="sm:col-span-2">
+						<label className="mb-1.5 block text-sm font-medium text-slate-700">
+							Nominal bayar
+						</label>
+						<div className="relative">
+							<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
+								Rp
+							</span>
+							<input
+								ref={amountRef}
+								type="text"
+								inputMode="numeric"
+								autoComplete="off"
+								disabled={
+									selectedChargeIsPaid ||
+									(!editing && !charge.charge_category_id)
+								}
+								value={
+									charge.amount_paid
+										? Number(charge.amount_paid).toLocaleString("id-ID")
+										: ""
+								}
+								onChange={(e) =>
+									setCharge({
+										...charge,
+										amount_paid: parseNumericInput(e.target.value),
+									})
+								}
+								className={`h-16 w-full rounded-2xl border-2 bg-white pl-16 pr-6 text-right text-2xl font-bold outline-none transition-all duration-200 focus:ring-4 disabled:opacity-50 ${
+									chargeAmountInvalid
+										? "border-red-400 focus:border-red-500 focus:ring-red-100"
+										: "border-slate-200 focus:border-brand-500 focus:ring-brand-100"
+								}`}
+								placeholder="0"
+								required
+							/>
+						</div>
+						<div className="mt-2 flex items-center justify-between gap-3">
+							{selectedCharge &&
+							charge.amount_paid &&
+							Number(charge.amount_paid) > 0 ? (
+								<p className="text-lg font-semibold text-brand-600">
+									{formatRupiah(charge.amount_paid)}
+								</p>
+							) : (
+								<span />
+							)}
+							{selectedCharge ? (
+								<p
+									className={`text-right text-sm ${
+										chargeAmountInvalid
+											? "font-semibold text-red-600"
+											: "text-slate-500"
+									}`}>
+									{selectedCharge.allow_installments === false
+										? `Harus lunas: ${formatRupiah(chargeAvailableToPay)}`
+										: `Maks: ${formatRupiah(chargeAvailableToPay)}`}
+								</p>
+							) : null}
+						</div>
+					</div>
+					<div className="border-t border-slate-100 pt-4 sm:col-span-2" />
 					<FormField label="Tanggal bayar">
 						<input
 							type="date"
 							className={inputClass}
 							value={charge.payment_date}
-							onChange={(e) => setCharge({ ...charge, payment_date: e.target.value })}
+							onChange={(e) =>
+								setCharge({ ...charge, payment_date: e.target.value })
+							}
 						/>
 					</FormField>
 					<FormField label="Metode">
@@ -424,20 +593,65 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						</select>
 					</FormField>
 					<p className="self-end text-sm text-slate-500">
-						Sisa setelah bayar: {formatRupiah(Math.max(chargeAvailableToPay - Number(charge.amount_paid || 0), 0))}
+						Sisa setelah bayar:{" "}
+						{formatRupiah(
+							Math.max(
+								chargeAvailableToPay - Number(charge.amount_paid || 0),
+								0,
+							),
+						)}
 					</p>
 					<FormField label="Keterangan">
 						<textarea
-							className={inputClass}
-							placeholder={charge.payment_method === "dari_tabungan" ? selectedCharge?.name ? `Pembayaran tagihan ${selectedCharge.name} dari tabungan` : "Pembayaran tagihan dari tabungan" : ""}
+							className={inputClass + " resize-none"}
+							placeholder={
+								charge.payment_method === "dari_tabungan"
+									? selectedCharge?.name
+										? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
+										: "Pembayaran tagihan dari tabungan"
+									: ""
+							}
 							value={charge.note}
 							onChange={(e) => setCharge({ ...charge, note: e.target.value })}
 						/>
 					</FormField>
 					<button
-						disabled={chargeAmountInvalid || selectedChargeIsPaid || (!editing && !charge.charge_category_id)}
-						className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-50 sm:col-span-2">
-						{selectedChargeIsPaid ? "Tagihan Lunas" : editing?.type === "charge" ? "Update Tagihan" : "Simpan Tagihan"}
+						disabled={
+							saving ||
+							chargeAmountInvalid ||
+							selectedChargeIsPaid ||
+							(!editing && !charge.charge_category_id)
+						}
+						className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2">
+						{saving ? (
+							<>
+								<svg
+									className="h-5 w-5 animate-spin"
+									viewBox="0 0 24 24"
+									fill="none">
+									<circle
+										className="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										strokeWidth="4"
+									/>
+									<path
+										className="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+									/>
+								</svg>
+								Menyimpan...
+							</>
+						) : selectedChargeIsPaid ? (
+							"Tagihan Lunas"
+						) : editing?.type === "charge" ? (
+							"Update Tagihan"
+						) : (
+							"Simpan Tagihan"
+						)}
 					</button>
 				</form>
 			) : null}
@@ -469,6 +683,30 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						});
 						focusInputSection();
 					}}
+					onDelete={async (row) => {
+						if (savingsLocked) {
+							setError(savingsLockedMessage);
+							return;
+						}
+						const chargePayment = Array.isArray(row.charge_payment)
+							? row.charge_payment[0]
+							: row.charge_payment;
+						if (chargePayment?.id) {
+							setError(
+								"Transaksi tarik tabungan ini berasal dari pembayaran tagihan, tidak bisa dihapus langsung. Koreksi pembayaran tagihan atau hubungi admin.",
+							);
+							return;
+						}
+						if (!window.confirm("Hapus transaksi tabungan ini?")) return;
+						setError(null);
+						try {
+							await deleteSavingsTransaction(row.id);
+							setToast("Transaksi tabungan dihapus");
+							await refresh();
+						} catch (err) {
+							setError(err.message);
+						}
+					}}
 				/>
 			) : null}
 			{active === "charge" ? (
@@ -497,13 +735,27 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						});
 						focusInputSection();
 					}}
+					onDelete={async (row) => {
+						const msg = row.savings_transaction_id
+							? "Pembayaran tagihan ini dari tabungan. Hapus juga akan mengembalikan saldo tabungan. Lanjutkan?"
+							: "Hapus pembayaran tagihan ini?";
+						if (!window.confirm(msg)) return;
+						setError(null);
+						try {
+							await deleteChargePayment(row.id);
+							setToast("Pembayaran tagihan dihapus");
+							await refresh();
+						} catch (err) {
+							setError(err.message);
+						}
+					}}
 				/>
 			) : null}
 		</div>
 	);
 }
 
-function HistoryList({ rows, type, onEdit }) {
+function HistoryList({ rows, type, onEdit, onDelete }) {
 	const [page, setPage] = useState(1);
 	const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
 	const pageSize = 5;
@@ -515,7 +767,10 @@ function HistoryList({ rows, type, onEdit }) {
 	});
 	const totalPages = Math.max(Math.ceil(filteredRows.length / pageSize), 1);
 	const currentPage = Math.min(page, totalPages);
-	const pagedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+	const pagedRows = filteredRows.slice(
+		(currentPage - 1) * pageSize,
+		currentPage * pageSize,
+	);
 
 	return (
 		<section className="rounded-[22px] border border-white/80 bg-white p-4 shadow-soft">
@@ -564,14 +819,22 @@ function HistoryList({ rows, type, onEdit }) {
 							</p>
 							{type === "savings" && getLinkedChargePayment(row)?.id ? (
 								<p className="mt-2 text-xs font-semibold text-amber-700">
-									Terkunci: pembayaran tagihan {getLinkedChargePayment(row)?.category?.name || ""}
+									Terkunci: pembayaran tagihan{" "}
+									{getLinkedChargePayment(row)?.category?.name || ""}
 								</p>
 							) : (
-								<button
-									className="mt-2 text-xs font-semibold text-brand-700"
-									onClick={() => onEdit(row)}>
-									Edit
-								</button>
+								<div className="mt-2 flex gap-2">
+									<button
+										className="text-xs font-semibold text-brand-700"
+										onClick={() => onEdit(row)}>
+										Edit
+									</button>
+									<button
+										className="text-xs font-semibold text-red-600"
+										onClick={() => onDelete(row)}>
+										Hapus
+									</button>
+								</div>
 							)}
 						</div>
 					))
@@ -603,14 +866,15 @@ function HistoryList({ rows, type, onEdit }) {
 }
 
 function getLinkedChargePayment(row) {
-	return Array.isArray(row.charge_payment) ? row.charge_payment[0] : row.charge_payment;
+	return Array.isArray(row.charge_payment)
+		? row.charge_payment[0]
+		: row.charge_payment;
 }
 
 function historyTitle(row, type) {
 	if (type === "savings")
 		return row.type === "tarik" ? "Tarik tabungan" : "Setor tabungan";
-	if (type === "charge")
-		return row.category?.name || "Pembayaran tagihan";
+	if (type === "charge") return row.category?.name || "Pembayaran tagihan";
 	return "Pembayaran";
 }
 
