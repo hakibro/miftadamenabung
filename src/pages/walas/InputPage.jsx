@@ -31,8 +31,8 @@ export default function InputPage() {
 	const student = students.find((item) => item.id === selected);
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-4">
-			<div className="rounded-lg border border-slate-200 bg-white p-4">
+		<div className="mx-auto max-w-3xl space-y-3 sm:space-y-4">
+			<div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
 				{!profile?.assigned_class_id ? (
 					<div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
 						Akun wali kelas ini belum dipasangkan ke kelas. Admin perlu membuka
@@ -45,11 +45,11 @@ export default function InputPage() {
 					</div>
 				) : null}
 				<label className="block">
-					<span className="mb-1 block text-sm font-medium text-slate-700">
+					<span className="mb-1 block text-xs font-medium text-slate-500 sm:text-sm">
 						Pilih siswa
 					</span>
 					<select
-						className="w-full rounded-md border border-slate-300 px-3 py-2"
+						className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm sm:rounded-md sm:py-2"
 						value={selected}
 						onChange={(e) => setSelected(e.target.value)}
 						disabled={!students.length}>

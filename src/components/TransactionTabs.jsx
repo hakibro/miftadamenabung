@@ -251,10 +251,14 @@ export default function TransactionTabs({ student, method = "manual" }) {
 				))}
 			</div>
 			{active === "savings" ? (
-				<div className="rounded-[24px] bg-gradient-to-br from-brand-700 via-brand-600 to-[#8f28ff] p-4 text-white shadow-glow">
+				<div className="rounded-[24px] bg-gradient-to-br from-brand-700 via-brand-600 to-[#8f28ff] p-4 text-white shadow-glow sm:p-5">
 					<>
-						<p className="text-sm text-white/75">Saldo tabungan siswa</p>
-						<p className="mt-1 text-3xl font-bold">{formatRupiah(balance)}</p>
+						<p className="text-xs text-white/75 sm:text-sm">
+							Saldo tabungan siswa
+						</p>
+						<p className="mt-1 text-2xl font-bold sm:text-3xl">
+							{formatRupiah(balance)}
+						</p>
 					</>
 				</div>
 			) : null}
@@ -268,14 +272,71 @@ export default function TransactionTabs({ student, method = "manual" }) {
 				<form
 					ref={formRef}
 					onSubmit={saveSavings}
-					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
-					{/* Nominal — large, prominen, auto-focus */}
+					className="grid gap-3 rounded-[22px] border border-white/80 bg-white p-3 shadow-soft sm:gap-4 sm:p-5">
+					{/* Jenis transaksi — pill toggle */}
 					<div className="sm:col-span-2">
-						<label className="mb-1.5 block text-sm font-medium text-slate-700">
+						<label className="mb-1.5 block text-xs font-medium text-slate-500 sm:text-sm">
+							Jenis transaksi
+						</label>
+						<div className="flex rounded-xl border-2 border-slate-200 bg-slate-50 p-1">
+							<button
+								type="button"
+								onClick={() => setSavings({ ...savings, type: "setor" })}
+								className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+									savings.type === "setor"
+										? "bg-emerald-500 text-white shadow-sm"
+										: "text-slate-500 hover:text-slate-700"
+								}`}>
+								<span className="inline-flex items-center gap-1.5">
+									<svg
+										className="h-4 w-4"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={2.5}>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M12 4.5v15m7.5-7.5h-15"
+										/>
+									</svg>
+									Setor
+								</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => setSavings({ ...savings, type: "tarik" })}
+								className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+									savings.type === "tarik"
+										? "bg-rose-500 text-white shadow-sm"
+										: "text-slate-500 hover:text-slate-700"
+								}`}>
+								<span className="inline-flex items-center gap-1.5">
+									<svg
+										className="h-4 w-4"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={2.5}>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M5 12h14"
+										/>
+									</svg>
+									Tarik
+								</span>
+							</button>
+						</div>
+					</div>
+
+					{/* Nominal — full-width, prominent */}
+					<div className="sm:col-span-2">
+						<label className="mb-1.5 block text-xs font-medium text-slate-500 sm:text-sm">
 							Nominal
 						</label>
 						<div className="relative">
-							<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
+							<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400 sm:left-4 sm:text-2xl">
 								Rp
 							</span>
 							<input
@@ -294,29 +355,14 @@ export default function TransactionTabs({ student, method = "manual" }) {
 										amount: parseNumericInput(e.target.value),
 									})
 								}
-								className="h-16 w-full rounded-2xl border-2 border-slate-200 bg-white pl-16 pr-6 text-right text-2xl font-bold text-slate-900 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+								className="h-14 w-full rounded-xl border-2 border-slate-200 bg-white pl-10 pr-4 text-right text-lg font-bold text-slate-900 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 sm:h-16 sm:pl-16 sm:pr-6 sm:text-2xl"
 								placeholder="0"
 								required
 							/>
 						</div>
-						{savings.amount && Number(savings.amount) > 0 ? (
-							<p className="mt-2 text-right text-lg font-semibold text-brand-600">
-								{formatRupiah(savings.amount)}
-							</p>
-						) : null}
 					</div>
-					<div className="border-t border-slate-100 pt-4 sm:col-span-2" />
-					<FormField label="Jenis transaksi">
-						<select
-							className={inputClass}
-							value={savings.type}
-							onChange={(e) =>
-								setSavings({ ...savings, type: e.target.value })
-							}>
-							<option value="setor">Setor</option>
-							<option value="tarik">Tarik</option>
-						</select>
-					</FormField>
+
+					{/* Tanggal */}
 					<FormField label="Tanggal">
 						<input
 							type="date"
@@ -328,17 +374,24 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							required
 						/>
 					</FormField>
+
+					{/* Keterangan */}
 					<FormField label="Keterangan">
 						<textarea
 							className={inputClass + " resize-none"}
+							rows={2}
 							value={savings.note}
 							onChange={(e) => setSavings({ ...savings, note: e.target.value })}
 							placeholder="Contoh: dibayar oleh ibu"
 						/>
 					</FormField>
+
+					{/* Submit */}
 					<button
 						disabled={saving}
-						className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2">
+						className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2 sm:text-base ${
+							savings.type === "tarik" ? "bg-rose-500" : "bg-emerald-500"
+						}`}>
 						{saving ? (
 							<>
 								<svg
@@ -363,8 +416,10 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							</>
 						) : editing?.type === "savings" ? (
 							"Update Tabungan"
+						) : savings.type === "tarik" ? (
+							"Simpan Penarikan"
 						) : (
-							"Simpan Tabungan"
+							"Simpan Setoran"
 						)}
 					</button>
 				</form>
