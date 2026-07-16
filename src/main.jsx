@@ -4,11 +4,17 @@ import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes.jsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import { SettingsProvider } from "./contexts/SettingsContext.jsx";
+import { useDynamicManifest } from "./utils/useDynamicManifest.js";
 import { registerSW } from "virtual:pwa-register";
 import "./index.css";
 
 // Auto-update service worker
 registerSW({ immediate: true });
+
+function AppShell() {
+	useDynamicManifest();
+	return <AppRoutes />;
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
 	<React.StrictMode>
@@ -16,7 +22,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 			future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<AuthProvider>
 				<SettingsProvider>
-					<AppRoutes />
+					<AppShell />
 				</SettingsProvider>
 			</AuthProvider>
 		</BrowserRouter>
