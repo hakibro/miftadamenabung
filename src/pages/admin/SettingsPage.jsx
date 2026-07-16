@@ -161,7 +161,7 @@ export default function SettingsPage() {
 										<img
 											src={settings.logo_url}
 											alt="Logo sekolah"
-											className="h-16 w-16 rounded-xl border border-slate-200 bg-white object-cover"
+											className="h-16 w-16 rounded-xl border border-slate-200 bg-white object-contain"
 										/>
 									) : (
 										<div className="flex h-16 w-16 items-center justify-center rounded-xl bg-brand-50 text-brand-700">

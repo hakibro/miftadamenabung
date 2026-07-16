@@ -81,7 +81,7 @@ function LogoMark({ logoUrl, appName }) {
 			<img
 				src={logoUrl}
 				alt={appName}
-				className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
+				className="h-10 w-10 rounded-lg border border-slate-200 object-contain"
 			/>
 		);
 	}
