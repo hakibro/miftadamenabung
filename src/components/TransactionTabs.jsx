@@ -46,9 +46,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	});
 	const [editing, setEditing] = useState(null);
 	const activePeriodId = student.current_class?.period_id;
-	const savingsLocked = Boolean(yearEndAction);
-	const savingsLockedMessage =
-		"Tabungan siswa ini sudah diproses di Pengambilan Tabungan untuk tahun ajaran ini. Input tabungan dikunci karena akan masuk tahun ajaran berikutnya.";
 	const [charge, setCharge] = useState({
 		charge_category_id: "",
 		amount_paid: "",
@@ -56,6 +53,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 		payment_method: "tunai",
 		note: "",
 	});
+	const [showChargeModal, setShowChargeModal] = useState(false);
 	function chargeAppliesToStudent(category) {
 		if (!category) return false;
 		const gradeSet = new Set(
@@ -161,10 +159,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 	async function saveSavings(event) {
 		event.preventDefault();
 		setError(null);
-		if (savingsLocked) {
-			setError(savingsLockedMessage);
-			return;
-		}
 		setSaving(true);
 		try {
 			const payload = {
@@ -230,6 +224,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			else await createChargePayment(payload);
 			setCharge({ ...charge, amount_paid: "", note: "" });
 			setEditing(null);
+			setShowChargeModal(false);
 			setToast("Pembayaran tagihan tersimpan");
 			await refresh();
 		} catch (err) {
@@ -274,22 +269,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					ref={formRef}
 					onSubmit={saveSavings}
 					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
-					{savingsLocked ? (
-						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:col-span-2">
-							<p className="font-semibold">
-								Tabungan tahun ajaran ini sudah dikunci.
-							</p>
-							<p className="mt-1 text-xs">
-								Aksi pengambilan:{" "}
-								{yearEndAction?.action === "withdrawn"
-									? "diambil"
-									: yearEndAction?.action === "saved"
-										? "saldo disimpan"
-										: "diproses"}
-								. Gunakan tahun ajaran baru untuk input tabungan berikutnya.
-							</p>
-						</div>
-					) : null}
 					{/* Nominal — large, prominen, auto-focus */}
 					<div className="sm:col-span-2">
 						<label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -304,7 +283,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 								type="text"
 								inputMode="numeric"
 								autoComplete="off"
-								disabled={savingsLocked}
 								value={
 									savings.amount
 										? Number(savings.amount).toLocaleString("id-ID")
@@ -316,7 +294,7 @@ export default function TransactionTabs({ student, method = "manual" }) {
 										amount: parseNumericInput(e.target.value),
 									})
 								}
-								className="h-16 w-full rounded-2xl border-2 border-slate-200 bg-white pl-16 pr-6 text-right text-2xl font-bold text-slate-900 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 disabled:opacity-50"
+								className="h-16 w-full rounded-2xl border-2 border-slate-200 bg-white pl-16 pr-6 text-right text-2xl font-bold text-slate-900 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
 								placeholder="0"
 								required
 							/>
@@ -326,32 +304,11 @@ export default function TransactionTabs({ student, method = "manual" }) {
 								{formatRupiah(savings.amount)}
 							</p>
 						) : null}
-						{/* Quick-amount chips */}
-						{!savingsLocked ? (
-							<div className="mt-3 flex flex-wrap gap-2">
-								{[5000, 10000, 20000, 50000].map((n) => (
-									<button
-										key={n}
-										type="button"
-										onClick={() =>
-											setSavings({ ...savings, amount: String(n) })
-										}
-										className={`rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all duration-150 ${
-											savings.amount === String(n)
-												? "border-brand-500 bg-brand-50 text-brand-700"
-												: "border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-600"
-										}`}>
-										{formatRupiah(n)}
-									</button>
-								))}
-							</div>
-						) : null}
 					</div>
 					<div className="border-t border-slate-100 pt-4 sm:col-span-2" />
 					<FormField label="Jenis transaksi">
 						<select
 							className={inputClass}
-							disabled={savingsLocked}
 							value={savings.type}
 							onChange={(e) =>
 								setSavings({ ...savings, type: e.target.value })
@@ -364,7 +321,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						<input
 							type="date"
 							className={inputClass}
-							disabled={savingsLocked}
 							value={savings.transaction_date}
 							onChange={(e) =>
 								setSavings({ ...savings, transaction_date: e.target.value })
@@ -375,14 +331,13 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					<FormField label="Keterangan">
 						<textarea
 							className={inputClass + " resize-none"}
-							disabled={savingsLocked}
 							value={savings.note}
 							onChange={(e) => setSavings({ ...savings, note: e.target.value })}
 							placeholder="Contoh: dibayar oleh ibu"
 						/>
 					</FormField>
 					<button
-						disabled={savingsLocked || saving}
+						disabled={saving}
 						className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2">
 						{saving ? (
 							<>
@@ -406,8 +361,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 								</svg>
 								Menyimpan...
 							</>
-						) : savingsLocked ? (
-							"Tabungan Dikunci"
 						) : editing?.type === "savings" ? (
 							"Update Tabungan"
 						) : (
@@ -418,12 +371,9 @@ export default function TransactionTabs({ student, method = "manual" }) {
 			) : null}
 
 			{active === "charge" ? (
-				<form
-					ref={formRef}
-					onSubmit={saveCharge}
-					className="grid gap-4 rounded-[22px] border border-white/80 bg-white p-4 shadow-soft sm:grid-cols-2">
-					{/* Tagihan — card-based picker */}
-					<div className="sm:col-span-2">
+				<>
+					{/* Tagihan — card-based picker with Bayar button */}
+					<div className="rounded-[22px] border border-white/80 bg-white p-4 shadow-soft">
 						<label className="mb-2 block text-sm font-medium text-slate-700">
 							Pilih tagihan
 						</label>
@@ -434,41 +384,27 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						) : (
 							<div className="grid gap-2.5">
 								{chargeSummaries.map((item) => {
-									const isSelected = charge.charge_category_id === item.id;
 									const progressPct =
 										item.amount > 0
 											? Math.round((item.paid / item.amount) * 100)
 											: 0;
 									const isLunas = item.remaining <= 0;
 									return (
-										<button
+										<div
 											key={item.id}
-											type="button"
-											disabled={
-												isLunas && editing?.charge_category_id !== item.id
-											}
-											onClick={() => {
-												setCharge({
-													...charge,
-													charge_category_id: item.id,
-													amount_paid: String(item.remaining),
-												});
-											}}
-											className={`relative flex items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
-												isSelected
-													? "border-brand-500 bg-brand-50 ring-2 ring-brand-100"
-													: isLunas
-														? "border-emerald-200 bg-emerald-50 opacity-70"
-														: "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/50"
+											className={`relative flex items-center gap-4 rounded-2xl border-2 p-4 transition-all duration-200 ${
+												isLunas
+													? "border-emerald-200 bg-emerald-50 opacity-70"
+													: "border-slate-200 bg-white"
 											}`}>
 											<div className="min-w-0 flex-1">
 												<div className="flex items-center justify-between gap-2">
 													<p
-														className={`font-semibold ${isSelected ? "text-brand-700" : isLunas ? "text-emerald-700" : "text-slate-900"}`}>
+														className={`font-semibold ${isLunas ? "text-emerald-700" : "text-slate-900"}`}>
 														{item.name}
 													</p>
 													<p
-														className={`shrink-0 text-sm font-bold ${isSelected ? "text-brand-600" : isLunas ? "text-emerald-600" : "text-slate-500"}`}>
+														className={`shrink-0 text-sm font-bold ${isLunas ? "text-emerald-600" : "text-slate-500"}`}>
 														{isLunas ? (
 															<span className="flex items-center gap-1">
 																<svg
@@ -504,211 +440,277 @@ export default function TransactionTabs({ student, method = "manual" }) {
 													<span>Dari {formatRupiah(item.amount)}</span>
 												</div>
 											</div>
-										</button>
+											{!isLunas ? (
+												<button
+													type="button"
+													onClick={() => {
+														setCharge({
+															...charge,
+															charge_category_id: item.id,
+															amount_paid: "",
+															payment_date: todayISO(),
+															payment_method: "tunai",
+															note: "",
+														});
+														setEditing(null);
+														setError(null);
+														setShowChargeModal(true);
+													}}
+													className="shrink-0 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110">
+													Bayar
+												</button>
+											) : null}
+										</div>
 									);
 								})}
 							</div>
 						)}
 					</div>
 
-					{/* Nominal bayar — large & prominent with quick chips */}
-					{selectedCharge ? (
-						<div className="sm:col-span-2">
-							<div className="mb-3 flex items-baseline justify-between">
-								<label className="text-sm font-medium text-slate-700">
-									Nominal bayar
-								</label>
-								<p
-									className={`text-xs font-semibold ${chargeAmountInvalid ? "text-red-500" : "text-slate-400"}`}>
-									{selectedCharge.allow_installments === false
-										? `Harus lunas: ${formatRupiah(chargeAvailableToPay)}`
-										: `Sisa tagihan: ${formatRupiah(chargeAvailableToPay)}`}
-								</p>
-							</div>
-							<div className="relative">
-								<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
-									Rp
-								</span>
-								<input
-									ref={amountRef}
-									type="text"
-									inputMode="numeric"
-									autoComplete="off"
-									disabled={selectedChargeIsPaid}
-									value={
-										charge.amount_paid
-											? Number(charge.amount_paid).toLocaleString("id-ID")
-											: ""
-									}
-									onChange={(e) =>
-										setCharge({
-											...charge,
-											amount_paid: parseNumericInput(e.target.value),
-										})
-									}
-									className={`h-16 w-full rounded-2xl border-2 bg-white pl-16 pr-6 text-right text-2xl font-bold outline-none transition-all duration-200 focus:ring-4 disabled:opacity-50 ${
-										chargeAmountInvalid
-											? "border-red-400 focus:border-red-500 focus:ring-red-100"
-											: "border-slate-200 focus:border-brand-500 focus:ring-brand-100"
-									}`}
-									placeholder="0"
-									required
-								/>
-							</div>
-							{charge.amount_paid && Number(charge.amount_paid) > 0 ? (
-								<p className="mt-2 text-right text-lg font-semibold text-brand-600">
-									{formatRupiah(charge.amount_paid)}
-								</p>
-							) : null}
+					{/* Payment Modal */}
+					{showChargeModal ? (
+						<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+							<div className="w-full max-w-md rounded-[22px] bg-white p-6 shadow-2xl">
+								<div className="mb-4 flex items-center justify-between">
+									<h3 className="text-lg font-bold text-slate-900">
+										Bayar Tagihan
+									</h3>
+									<button
+										type="button"
+										onClick={() => setShowChargeModal(false)}
+										className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+										<svg
+											className="h-5 w-5"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+											strokeWidth={2}>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									</button>
+								</div>
+								{selectedCharge ? (
+									<div className="mb-4 rounded-xl bg-slate-50 p-3 text-sm">
+										<p className="font-semibold text-slate-900">
+											{selectedCharge.name}
+										</p>
+										<p className="text-xs text-slate-500">
+											Sisa: {formatRupiah(chargeAvailableToPay)}
+											{selectedCharge.allow_installments === false
+												? " (harus lunas)"
+												: ""}
+										</p>
+									</div>
+								) : null}
+								<form onSubmit={saveCharge} className="grid gap-4">
+									{/* Nominal bayar */}
+									<div>
+										<label className="mb-1.5 block text-sm font-medium text-slate-700">
+											Nominal bayar
+										</label>
+										<div className="relative">
+											<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">
+												Rp
+											</span>
+											<input
+												ref={amountRef}
+												type="text"
+												inputMode="numeric"
+												autoComplete="off"
+												disabled={selectedChargeIsPaid}
+												value={
+													charge.amount_paid
+														? Number(charge.amount_paid).toLocaleString("id-ID")
+														: ""
+												}
+												onChange={(e) =>
+													setCharge({
+														...charge,
+														amount_paid: parseNumericInput(e.target.value),
+													})
+												}
+												className={`h-14 w-full rounded-xl border-2 bg-white pl-14 pr-4 text-right text-xl font-bold outline-none transition-all duration-200 focus:ring-4 disabled:opacity-50 ${
+													chargeAmountInvalid
+														? "border-red-400 focus:border-red-500 focus:ring-red-100"
+														: "border-slate-200 focus:border-brand-500 focus:ring-brand-100"
+												}`}
+												placeholder="0"
+												required
+											/>
+										</div>
+										{chargeAmountInvalid ? (
+											<p className="mt-1 text-xs font-semibold text-red-600">
+												{selectedCharge?.allow_installments === false
+													? `Harus lunas: ${formatRupiah(chargeAvailableToPay)}`
+													: `Max: ${formatRupiah(chargeAvailableToPay)}`}
+											</p>
+										) : null}
+									</div>
 
-							{/* Error/validation hint */}
-							{chargeAmountInvalid ? (
-								<p className="mt-2 text-sm font-semibold text-red-600">
-									{selectedCharge?.allow_installments === false
-										? `Tagihan ini harus dibayar lunas: ${formatRupiah(chargeAvailableToPay)}`
-										: `Nominal tidak valid. Sisa tagihan: ${formatRupiah(chargeAvailableToPay)}`}
-								</p>
-							) : null}
+									{/* Tanggal */}
+									<FormField label="Tanggal bayar">
+										<input
+											type="date"
+											className={inputClass}
+											value={charge.payment_date}
+											onChange={(e) =>
+												setCharge({
+													...charge,
+													payment_date: e.target.value,
+												})
+											}
+										/>
+									</FormField>
+
+									{/* Metode — pill toggle */}
+									<FormField label="Metode bayar">
+										<div className="flex rounded-xl border-2 border-slate-200 bg-slate-50 p-1">
+											<button
+												type="button"
+												disabled={editing?.type === "charge"}
+												onClick={() =>
+													setCharge({
+														...charge,
+														payment_method: "tunai",
+														note: "",
+													})
+												}
+												className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+													charge.payment_method === "tunai"
+														? "bg-white text-slate-900 shadow-sm"
+														: "text-slate-500 hover:text-slate-700"
+												}`}>
+												Tunai
+											</button>
+											<button
+												type="button"
+												disabled={editing?.type === "charge"}
+												onClick={() =>
+													setCharge({
+														...charge,
+														payment_method: "dari_tabungan",
+														note:
+															!charge.note && selectedCharge?.name
+																? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
+																: "Pembayaran tagihan dari tabungan",
+													})
+												}
+												className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+													charge.payment_method === "dari_tabungan"
+														? "bg-white text-slate-900 shadow-sm"
+														: "text-slate-500 hover:text-slate-700"
+												}`}>
+												Dari tabungan
+											</button>
+										</div>
+									</FormField>
+
+									{/* Keterangan */}
+									<FormField label="Keterangan (opsional)">
+										<textarea
+											className={inputClass + " resize-none"}
+											placeholder={
+												charge.payment_method === "dari_tabungan"
+													? selectedCharge?.name
+														? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
+														: "Pembayaran tagihan dari tabungan"
+													: "Catatan (opsional)"
+											}
+											value={charge.note}
+											onChange={(e) =>
+												setCharge({ ...charge, note: e.target.value })
+											}
+										/>
+									</FormField>
+
+									{/* Sisa setelah bayar */}
+									{selectedCharge && charge.amount_paid ? (
+										<div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+											<span className="text-sm text-slate-600">
+												Sisa setelah bayar
+											</span>
+											<span
+												className={`text-base font-bold ${
+													chargeAvailableToPay -
+														Number(charge.amount_paid || 0) <=
+													0
+														? "text-emerald-600"
+														: "text-slate-700"
+												}`}>
+												{formatRupiah(
+													Math.max(
+														chargeAvailableToPay -
+															Number(charge.amount_paid || 0),
+														0,
+													),
+												)}
+											</span>
+										</div>
+									) : null}
+
+									{error ? (
+										<div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+											{error}
+										</div>
+									) : null}
+
+									{/* Submit + Cancel */}
+									<div className="flex gap-3">
+										<button
+											type="button"
+											onClick={() => setShowChargeModal(false)}
+											className="flex-1 rounded-xl border-2 border-slate-200 px-4 py-3 font-semibold text-slate-600 transition-all hover:bg-slate-50">
+											Batal
+										</button>
+										<button
+											type="submit"
+											disabled={
+												saving ||
+												chargeAmountInvalid ||
+												selectedChargeIsPaid ||
+												(!editing && !charge.charge_category_id)
+											}
+											className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50">
+											{saving ? (
+												<>
+													<svg
+														className="h-5 w-5 animate-spin"
+														viewBox="0 0 24 24"
+														fill="none">
+														<circle
+															className="opacity-25"
+															cx="12"
+															cy="12"
+															r="10"
+															stroke="currentColor"
+															strokeWidth="4"
+														/>
+														<path
+															className="opacity-75"
+															fill="currentColor"
+															d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+														/>
+													</svg>
+													Menyimpan...
+												</>
+											) : selectedChargeIsPaid ? (
+												"Tagihan Lunas"
+											) : editing?.type === "charge" ? (
+												"Update Tagihan"
+											) : (
+												"Simpan Tagihan"
+											)}
+										</button>
+									</div>
+								</form>
+							</div>
 						</div>
 					) : null}
-
-					<div className="border-t border-slate-100 pt-4 sm:col-span-2" />
-
-					{/* Tanggal */}
-					<FormField label="Tanggal bayar">
-						<input
-							type="date"
-							className={inputClass}
-							value={charge.payment_date}
-							onChange={(e) =>
-								setCharge({ ...charge, payment_date: e.target.value })
-							}
-						/>
-					</FormField>
-
-					{/* Metode — pill toggle */}
-					<FormField label="Metode bayar">
-						<div className="flex rounded-xl border-2 border-slate-200 bg-slate-50 p-1">
-							<button
-								type="button"
-								disabled={editing?.type === "charge"}
-								onClick={() =>
-									setCharge({
-										...charge,
-										payment_method: "tunai",
-										note: "",
-									})
-								}
-								className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
-									charge.payment_method === "tunai"
-										? "bg-white text-slate-900 shadow-sm"
-										: "text-slate-500 hover:text-slate-700"
-								}`}>
-								Tunai
-							</button>
-							<button
-								type="button"
-								disabled={editing?.type === "charge"}
-								onClick={() =>
-									setCharge({
-										...charge,
-										payment_method: "dari_tabungan",
-										note:
-											!charge.note && selectedCharge?.name
-												? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
-												: "Pembayaran tagihan dari tabungan",
-									})
-								}
-								className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
-									charge.payment_method === "dari_tabungan"
-										? "bg-white text-slate-900 shadow-sm"
-										: "text-slate-500 hover:text-slate-700"
-								}`}>
-								Dari tabungan
-							</button>
-						</div>
-					</FormField>
-
-					{/* Keterangan */}
-					<FormField label="Keterangan (opsional)">
-						<textarea
-							className={inputClass + " resize-none"}
-							placeholder={
-								charge.payment_method === "dari_tabungan"
-									? selectedCharge?.name
-										? `Pembayaran tagihan ${selectedCharge.name} dari tabungan`
-										: "Pembayaran tagihan dari tabungan"
-									: "Catatan (opsional)"
-							}
-							value={charge.note}
-							onChange={(e) => setCharge({ ...charge, note: e.target.value })}
-						/>
-					</FormField>
-
-					{/* Sisa setelah bayar — inline summary */}
-					{selectedCharge && charge.amount_paid ? (
-						<div className="sm:col-span-2">
-							<div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-								<span className="text-sm text-slate-600">
-									Sisa setelah bayar
-								</span>
-								<span
-									className={`text-lg font-bold ${
-										chargeAvailableToPay - Number(charge.amount_paid || 0) <= 0
-											? "text-emerald-600"
-											: "text-slate-700"
-									}`}>
-									{formatRupiah(
-										Math.max(
-											chargeAvailableToPay - Number(charge.amount_paid || 0),
-											0,
-										),
-									)}
-								</span>
-							</div>
-						</div>
-					) : null}
-
-					{/* Submit */}
-					<button
-						disabled={
-							saving ||
-							chargeAmountInvalid ||
-							selectedChargeIsPaid ||
-							(!editing && !charge.charge_category_id)
-						}
-						className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-glow transition-all duration-200 hover:brightness-110 disabled:opacity-50 sm:col-span-2">
-						{saving ? (
-							<>
-								<svg
-									className="h-5 w-5 animate-spin"
-									viewBox="0 0 24 24"
-									fill="none">
-									<circle
-										className="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										strokeWidth="4"
-									/>
-									<path
-										className="opacity-75"
-										fill="currentColor"
-										d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-									/>
-								</svg>
-								Menyimpan...
-							</>
-						) : selectedChargeIsPaid ? (
-							"Tagihan Lunas"
-						) : editing?.type === "charge" ? (
-							"Update Tagihan"
-						) : (
-							"Simpan Tagihan"
-						)}
-					</button>
-				</form>
+				</>
 			) : null}
 
 			{active === "savings" ? (
@@ -716,19 +718,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					rows={savingsRows}
 					type="savings"
 					onEdit={(row) => {
-						if (savingsLocked) {
-							setError(savingsLockedMessage);
-							return;
-						}
-						const chargePayment = Array.isArray(row.charge_payment)
-							? row.charge_payment[0]
-							: row.charge_payment;
-						if (chargePayment?.id) {
-							setError(
-								"Transaksi tarik tabungan ini berasal dari pembayaran tagihan, jadi tidak bisa diedit langsung. Silakan koreksi pembayaran tagihan atau hubungi admin.",
-							);
-							return;
-						}
 						setEditing({ type: "savings", id: row.id });
 						setSavings({
 							type: row.type,
@@ -739,25 +728,20 @@ export default function TransactionTabs({ student, method = "manual" }) {
 						focusInputSection();
 					}}
 					onDelete={async (row) => {
-						if (savingsLocked) {
-							setError(savingsLockedMessage);
-							return;
-						}
-						const chargePayment = Array.isArray(row.charge_payment)
-							? row.charge_payment[0]
-							: row.charge_payment;
-						if (chargePayment?.id) {
-							setError(
-								"Transaksi tarik tabungan ini berasal dari pembayaran tagihan, tidak bisa dihapus langsung. Koreksi pembayaran tagihan atau hubungi admin.",
-							);
-							return;
-						}
 						if (!window.confirm("Hapus transaksi tabungan ini?")) return;
 						setError(null);
 						try {
 							await deleteSavingsTransaction(row.id);
+							setEditing(null);
+							setSavings({
+								type: "setor",
+								amount: "",
+								transaction_date: todayISO(),
+								note: "",
+							});
 							setToast("Transaksi tabungan dihapus");
 							await refresh();
+							focusInputSection();
 						} catch (err) {
 							setError(err.message);
 						}
@@ -769,12 +753,6 @@ export default function TransactionTabs({ student, method = "manual" }) {
 					rows={chargeRows}
 					type="charge"
 					onEdit={(row) => {
-						if (row.savings_transaction_id) {
-							setError(
-								"Pembayaran tagihan dari tabungan tidak diedit langsung agar saldo tetap konsisten. Buat koreksi transaksi baru atau hubungi admin.",
-							);
-							return;
-						}
 						setEditing({
 							type: "charge",
 							id: row.id,
@@ -788,16 +766,16 @@ export default function TransactionTabs({ student, method = "manual" }) {
 							payment_method: row.payment_method,
 							note: row.note || "",
 						});
-						focusInputSection();
+						setError(null);
+						setShowChargeModal(true);
 					}}
 					onDelete={async (row) => {
-						const msg = row.savings_transaction_id
-							? "Pembayaran tagihan ini dari tabungan. Hapus juga akan mengembalikan saldo tabungan. Lanjutkan?"
-							: "Hapus pembayaran tagihan ini?";
-						if (!window.confirm(msg)) return;
+						if (!window.confirm("Hapus pembayaran tagihan ini?")) return;
 						setError(null);
 						try {
 							await deleteChargePayment(row.id);
+							setEditing(null);
+							setShowChargeModal(false);
 							setToast("Pembayaran tagihan dihapus");
 							await refresh();
 						} catch (err) {
@@ -877,20 +855,19 @@ function HistoryList({ rows, type, onEdit, onDelete }) {
 									Terkunci: pembayaran tagihan{" "}
 									{getLinkedChargePayment(row)?.category?.name || ""}
 								</p>
-							) : (
-								<div className="mt-2 flex gap-2">
-									<button
-										className="text-xs font-semibold text-brand-700"
-										onClick={() => onEdit(row)}>
-										Edit
-									</button>
-									<button
-										className="text-xs font-semibold text-red-600"
-										onClick={() => onDelete(row)}>
-										Hapus
-									</button>
-								</div>
-							)}
+							) : null}
+							<div className="mt-2 flex gap-2">
+								<button
+									className="text-xs font-semibold text-brand-700"
+									onClick={() => onEdit(row)}>
+									Edit
+								</button>
+								<button
+									className="text-xs font-semibold text-red-600"
+									onClick={() => onDelete(row)}>
+									Hapus
+								</button>
+							</div>
 						</div>
 					))
 				) : (

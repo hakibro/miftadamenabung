@@ -114,10 +114,9 @@ export async function updateSavingsTransaction(id, payload) {
 }
 
 export async function deleteSavingsTransaction(id) {
-	const { error } = await supabase
-		.from("savings_transactions")
-		.delete()
-		.eq("id", id);
+	const { error } = await supabase.rpc("walas_delete_savings_transaction", {
+		p_id: id,
+	});
 	if (error) throw error;
 }
 
