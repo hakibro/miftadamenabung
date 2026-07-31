@@ -126,7 +126,9 @@ export default function AppLayout() {
 
 	// Mobile dashboard subtext: prefer class name for walas, fallback to schoolName
 	const dashboardSubtitle =
-		profile?.role === "walas" && className ? className : schoolName;
+		profile?.role === "walas" && className
+			? `Wali Kelas ${className}`
+			: schoolName;
 
 	return (
 		<div className="app-shell min-h-screen bg-[#f7f1ff] text-slate-900 lg:flex">
