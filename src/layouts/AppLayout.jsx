@@ -233,7 +233,7 @@ export default function AppLayout() {
 				</main>
 			</div>
 
-			<nav className="no-print fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] lg:hidden">
+			<nav className="no-print fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] [transform:translateZ(0)] lg:hidden">
 				<div
 					className={`mx-auto flex max-w-md rounded-[26px] border border-white/80 bg-white/95 p-1.5 shadow-soft backdrop-blur ${
 						isAdmin ? "gap-1 overflow-x-auto" : "justify-around px-2"
