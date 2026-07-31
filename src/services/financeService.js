@@ -259,3 +259,43 @@ export async function listChargePayments(filters = {}) {
 		return true;
 	});
 }
+
+/** Get per-student savings & charge totals for a class. Returns {savingsByStudent, chargeCategories, chargePaidByStudent, chargePayments} */
+export async function getClassStudentFinance(
+	classId,
+	periodId,
+	startDate,
+	endDate,
+) {
+	const [savingsTx, chargeCategories, chargePayments] = await Promise.all([
+		listSavingsTransactions({ periodId, startDate, endDate }),
+		listChargeCategories({ periodId }),
+		listChargePayments({ classId, periodId, startDate, endDate }),
+	]);
+
+	const savingsByStudent = new Map();
+	for (const tx of savingsTx) {
+		const sid = tx.student_id;
+		if (!savingsByStudent.has(sid))
+			savingsByStudent.set(sid, { deposit: 0, withdrawal: 0 });
+		const entry = savingsByStudent.get(sid);
+		if (tx.type === "setor") entry.deposit += Number(tx.amount || 0);
+		else entry.withdrawal += Number(tx.amount || 0);
+	}
+
+	const chargePaidByStudent = new Map();
+	for (const cp of chargePayments) {
+		const sid = cp.student_id;
+		chargePaidByStudent.set(
+			sid,
+			(chargePaidByStudent.get(sid) || 0) + Number(cp.amount_paid || 0),
+		);
+	}
+
+	return {
+		savingsByStudent,
+		chargeCategories,
+		chargePaidByStudent,
+		chargePayments,
+	};
+}

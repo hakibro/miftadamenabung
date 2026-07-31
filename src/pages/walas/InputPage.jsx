@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import TransactionTabs from "../../components/TransactionTabs";
 import { useAuth } from "../../contexts/AuthContext";
 import { listStudents } from "../../services/masterDataService";
 
 export default function InputPage() {
 	const { profile } = useAuth();
+	const [searchParams] = useSearchParams();
+	const preselectedStudentId = searchParams.get("student") || "";
 	const [students, setStudents] = useState([]);
-	const [selected, setSelected] = useState("");
+	const [selected, setSelected] = useState(preselectedStudentId);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 
