@@ -1,4 +1,10 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+	Link,
+	NavLink,
+	Outlet,
+	useLocation,
+	useNavigate,
+} from "react-router-dom";
 import {
 	ArrowLeft,
 	BarChart3,
@@ -119,9 +125,8 @@ export default function AppLayout() {
 	const schoolName = settings?.school_name || "Administrasi sekolah";
 
 	// Mobile dashboard subtext: prefer class name for walas, fallback to schoolName
-	const dashboardSubtitle = profile?.role === "walas" && className
-		? className
-		: schoolName;
+	const dashboardSubtitle =
+		profile?.role === "walas" && className ? className : schoolName;
 
 	return (
 		<div className="app-shell min-h-screen bg-[#f7f1ff] text-slate-900 lg:flex">
@@ -168,7 +173,9 @@ export default function AppLayout() {
 										<p className="truncate text-sm font-semibold text-slate-950">
 											{userName}
 										</p>
-										<p className="truncate text-xs text-slate-500">{dashboardSubtitle}</p>
+										<p className="truncate text-xs text-slate-500">
+											{dashboardSubtitle}
+										</p>
 									</div>
 								</>
 							) : (
@@ -199,7 +206,9 @@ export default function AppLayout() {
 										<span>Kembali</span>
 									</button>
 									<div className="min-w-0">
-										<p className="truncate text-sm text-slate-500">{pageTitle}</p>
+										<p className="truncate text-sm text-slate-500">
+											{pageTitle}
+										</p>
 										<h1 className="truncate text-xl font-semibold text-slate-950">
 											{schoolName}
 										</h1>
