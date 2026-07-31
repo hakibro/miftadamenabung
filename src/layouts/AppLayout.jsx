@@ -103,6 +103,7 @@ export default function AppLayout() {
 			settings.show_withdrawal !== false,
 	);
 	const mobileNav = nav;
+	const isAdmin = profile?.role === "admin";
 	const pageTitle =
 		nav.find((item) => location.pathname.startsWith(item.to))?.label ||
 		"Dashboard";
@@ -171,28 +172,31 @@ export default function AppLayout() {
 					</div>
 				</header>
 
-				<main className="mx-auto w-full max-w-md px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+7.5rem)] sm:max-w-none sm:px-5 lg:max-w-none lg:px-6 lg:pb-8">
+				<main className="mx-auto w-full max-w-md px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:max-w-none sm:px-5 lg:max-w-none lg:px-6 lg:pb-8">
 					<Outlet />
 				</main>
 			</div>
 
 			<nav className="no-print fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] lg:hidden">
-				<div className="mx-auto flex max-w-md gap-1 overflow-x-auto rounded-[26px] border border-white/80 bg-white/95 p-2 shadow-soft backdrop-blur">
+				<div
+					className={`mx-auto flex max-w-md rounded-[26px] border border-white/80 bg-white/95 p-1.5 shadow-soft backdrop-blur ${
+						isAdmin ? "gap-1 overflow-x-auto" : "justify-around px-2"
+					}`}>
 					{mobileNav.map((item) => {
 						const Icon = item.icon;
 						return (
 							<NavLink
 								key={item.to}
 								to={item.to}
+								title={item.label}
 								className={({ isActive }) =>
-									`flex min-h-[56px] min-w-[78px] flex-col items-center justify-center gap-1 rounded-2xl px-2 text-[11px] font-medium transition ${
+									`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition ${
 										isActive
 											? "bg-brand-600 text-white shadow-glow"
 											: "text-slate-500 hover:bg-brand-50 hover:text-brand-700"
 									}`
 								}>
-								<Icon size={20} />
-								<span className="max-w-full truncate">{item.label}</span>
+								<Icon size={22} />
 							</NavLink>
 						);
 					})}
