@@ -22,11 +22,13 @@ export default function AppRoutes() {
 	return (
 		<Routes>
 			<Route path="/login" element={<LoginPage />} />
-			<Route path="/scan/siswa/:id" element={<ScanStudentPage />} />
 
 			<Route
 				element={<ProtectedRoute roles={["admin", "bendahara", "walas"]} />}>
-				<Route path="/scan/siswa/scan" element={<ScannerPage />} />
+				<Route element={<AppLayout />}>
+					<Route path="/scan/siswa/scan" element={<ScannerPage />} />
+					<Route path="/scan/siswa/:id" element={<ScanStudentPage />} />
+				</Route>
 			</Route>
 
 			<Route element={<ProtectedRoute roles={["admin"]} />}>
