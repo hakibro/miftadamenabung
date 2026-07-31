@@ -119,18 +119,17 @@ export default function ScannerPage() {
 				</div>
 			) : null}
 
-			<div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+			<div className="relative overflow-hidden rounded-lg border border-slate-200 bg-white">
+				{/* Scanner container - always visible so html5-qrcode can inject video */}
+				<div id="qr-reader" className="min-h-[300px] w-full" />
+
+				{/* Loading overlay */}
 				{status === "starting" ? (
-					<div className="flex flex-col items-center gap-3 p-8 text-slate-400">
+					<div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white text-slate-400">
 						<Camera className="h-10 w-10 animate-pulse" />
 						<p className="text-sm">Membuka kamera...</p>
 					</div>
 				) : null}
-				{/* Always render the scanner container so Html5Qrcode finds it */}
-				<div
-					id="qr-reader"
-					style={{ display: status === "running" ? "block" : "none" }}
-				/>
 			</div>
 
 			<p className="text-center text-xs text-slate-400">
