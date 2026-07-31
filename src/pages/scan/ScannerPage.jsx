@@ -37,12 +37,12 @@ export default function ScannerPage() {
 				},
 				() => {
 					// scan failure — silent, camera keeps trying
-				}
+				},
 			)
 			.then(() => setScanning(true))
 			.catch((err) => {
 				setError(
-					err.message || "Gagal mengakses kamera. Pastikan kamera diizinkan."
+					err.message || "Gagal mengakses kamera. Pastikan kamera diizinkan.",
 				);
 			});
 
