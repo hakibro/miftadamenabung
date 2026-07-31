@@ -1,7 +1,11 @@
 import { supabase } from '../lib/supabase';
 
 export async function getProfile(id) {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*, assigned_class:classes!profiles_assigned_class_id_fkey(name)')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

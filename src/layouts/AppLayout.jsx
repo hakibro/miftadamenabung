@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+	ArrowLeft,
 	BarChart3,
 	BookOpen,
 	GraduationCap,
@@ -97,6 +98,7 @@ export default function AppLayout() {
 	const { profile, signOut } = useAuth();
 	const { settings } = useSettings();
 	const location = useLocation();
+	const navigate = useNavigate();
 	const nav = (navByRole[profile?.role] ?? []).filter(
 		(item) =>
 			item.to !== "/walas/savings-withdrawals" ||
@@ -107,8 +109,19 @@ export default function AppLayout() {
 	const pageTitle =
 		nav.find((item) => location.pathname.startsWith(item.to))?.label ||
 		"Dashboard";
+	const isDashboard = location.pathname.endsWith("/dashboard");
+	const userName = profile?.full_name || "Pengguna";
+	const className = profile?.assigned_class?.name || "";
+
+	// Determine the role-based dashboard path for the back button
+	const dashboardPath = profile?.role ? `/${profile.role}/dashboard` : "/";
 	const appName = settings?.app_name || "Sistem Keuangan Kelas";
 	const schoolName = settings?.school_name || "Administrasi sekolah";
+
+	// Mobile dashboard subtext: prefer class name for walas, fallback to schoolName
+	const dashboardSubtitle = profile?.role === "walas" && className
+		? className
+		: schoolName;
 
 	return (
 		<div className="app-shell min-h-screen bg-[#f7f1ff] text-slate-900 lg:flex">
@@ -148,19 +161,51 @@ export default function AppLayout() {
 				<header className="no-print sticky top-0 z-20 bg-[#f7f1ff]/90 backdrop-blur lg:bg-white/85">
 					<div className="flex h-16 items-center justify-between gap-3 px-4 sm:h-20 lg:px-6">
 						<div className="flex min-w-0 items-center gap-3 lg:hidden">
-							<LogoMark logoUrl={settings?.logo_url} appName={appName} />
-							<div className="min-w-0">
-								<p className="truncate text-sm font-semibold text-slate-950">
-									{schoolName}
-								</p>
-								<p className="truncate text-xs text-slate-500">{pageTitle}</p>
-							</div>
+							{isDashboard ? (
+								<>
+									<LogoMark logoUrl={settings?.logo_url} appName={appName} />
+									<div className="min-w-0">
+										<p className="truncate text-sm font-semibold text-slate-950">
+											{userName}
+										</p>
+										<p className="truncate text-xs text-slate-500">{dashboardSubtitle}</p>
+									</div>
+								</>
+							) : (
+								<button
+									onClick={() => navigate(-1)}
+									className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-white/80 bg-white px-3 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-brand-50 hover:text-brand-700"
+									title="Kembali">
+									<ArrowLeft size={18} />
+									<span>Kembali</span>
+								</button>
+							)}
 						</div>
 						<div className="hidden min-w-0 lg:block">
-							<p className="truncate text-sm text-slate-500">{pageTitle}</p>
-							<h1 className="truncate text-xl font-semibold text-slate-950">
-								Halo, {profile?.full_name || "Pengguna"}
-							</h1>
+							{isDashboard ? (
+								<>
+									<p className="truncate text-sm text-slate-500">Dashboard</p>
+									<h1 className="truncate text-xl font-semibold text-slate-950">
+										Halo, {userName}
+									</h1>
+								</>
+							) : (
+								<div className="flex items-center gap-3">
+									<button
+										onClick={() => navigate(dashboardPath)}
+										className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-white/80 bg-white px-3 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-brand-50 hover:text-brand-700"
+										title="Kembali ke Dashboard">
+										<ArrowLeft size={18} />
+										<span>Kembali</span>
+									</button>
+									<div className="min-w-0">
+										<p className="truncate text-sm text-slate-500">{pageTitle}</p>
+										<h1 className="truncate text-xl font-semibold text-slate-950">
+											{schoolName}
+										</h1>
+									</div>
+								</div>
+							)}
 						</div>
 						<button
 							onClick={signOut}
