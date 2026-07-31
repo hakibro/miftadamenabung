@@ -59,9 +59,9 @@ export default function InputPage() {
 						<option value="">
 							{loading ? "Memuat siswa..." : "Pilih siswa"}
 						</option>
-						{students.map((item) => (
+						{students.map((item, idx) => (
 							<option key={item.id} value={item.id}>
-								{item.name}
+								{idx + 1}. {item.name}
 							</option>
 						))}
 					</select>

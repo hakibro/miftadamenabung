@@ -231,7 +231,7 @@ export default function WalasDashboard() {
 					<p className="text-sm text-slate-500">Belum ada siswa.</p>
 				) : (
 					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-						{students.map((student) => {
+						{students.map((student, idx) => {
 							const fin = studentFinance.get(student.id) || {
 								savingsBalance: 0,
 								savingsDeposit: 0,
@@ -246,17 +246,21 @@ export default function WalasDashboard() {
 									type="button"
 									onClick={() => navigate(`/walas/input?student=${student.id}`)}
 									className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm transition hover:shadow-md hover:border-brand-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+									{/* Nomor */}
+									<span className="shrink-0 text-xs font-semibold text-slate-400 w-5 text-center">
+										{idx + 1}
+									</span>
 									{/* Nama + gender */}
 									<div className="flex-1 min-w-0">
 										<p className="text-sm font-bold text-slate-950 truncate">
 											{student.name}
 										</p>
-										<div className="flex items-center gap-2 mt-0.5 text-xs">
-											<span className="rounded-full bg-brand-50 px-1.5 py-px font-semibold text-brand-700">
+										<div className="flex items-center gap-2 mt-0.5 text-xs min-w-0">
+											<span className="shrink-0 rounded-full bg-brand-50 px-1.5 py-px font-semibold text-brand-700">
 												{student.gender}
 											</span>
 											{totalCharge > 0 && (
-												<span className="text-brand-700 font-medium">
+												<span className="text-brand-700 font-medium truncate">
 													Bayar Tagihan {formatRupiah(fin.chargePaid)}
 												</span>
 											)}
