@@ -14,5 +14,6 @@ export function roleHome(role) {
 export function canAccess(profile, allowedRoles = []) {
   if (!profile) return false;
   if (profile.role === ROLES.ADMIN) return true;
+  if (!allowedRoles || allowedRoles.length === 0) return true;
   return allowedRoles.includes(profile.role);
 }
