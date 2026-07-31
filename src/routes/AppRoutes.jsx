@@ -15,7 +15,6 @@ import WalasStudentsPage from "../pages/walas/WalasStudentsPage";
 import InputPage from "../pages/walas/InputPage";
 import StudentDetailPage from "../pages/walas/StudentDetailPage";
 import ScanStudentPage from "../pages/scan/ScanStudentPage";
-import ScannerPage from "../pages/scan/ScannerPage";
 import ReportPage from "../pages/shared/ReportPage";
 
 export default function AppRoutes() {
@@ -26,7 +25,6 @@ export default function AppRoutes() {
 			<Route
 				element={<ProtectedRoute roles={["admin", "bendahara", "walas"]} />}>
 				<Route element={<AppLayout />}>
-					<Route path="/scan/siswa/scan" element={<ScannerPage />} />
 					<Route path="/scan/siswa/:id" element={<ScanStudentPage />} />
 				</Route>
 			</Route>
