@@ -194,6 +194,14 @@ export default function WalasDashboard() {
 					</span>
 				</div>
 				<div className="flex gap-3">
+					{/* Tagihan */}
+					<div className="flex-1 rounded-xl bg-white/70 p-3 flex flex-col justify-center">
+						<p className="text-xs font-medium text-slate-500 mb-1">Tagihan</p>
+						<p className="text-xs text-slate-400">Bayar</p>
+						<p className="text-sm font-bold text-brand-700">
+							{formatRupiah(chargeSummary.paid)}
+						</p>
+					</div>
 					{/* Tabungan: Setor + Tarik */}
 					<div className="flex-[2] rounded-xl bg-white/70 p-3">
 						<p className="text-xs font-medium text-slate-500 mb-2">Tabungan</p>
@@ -212,14 +220,6 @@ export default function WalasDashboard() {
 								</p>
 							</div>
 						</div>
-					</div>
-					{/* Bayar Tagihan */}
-					<div className="flex-1 rounded-xl bg-white/70 p-3 flex flex-col justify-center">
-						<p className="text-xs font-medium text-slate-500 mb-1">Tagihan</p>
-						<p className="text-xs text-slate-400">Bayar</p>
-						<p className="text-sm font-bold text-brand-700">
-							{formatRupiah(chargeSummary.paid)}
-						</p>
 					</div>
 				</div>
 			</div>
@@ -256,7 +256,7 @@ export default function WalasDashboard() {
 												{student.gender}
 											</span>
 											{totalCharge > 0 && (
-												<span className="text-slate-500">
+												<span className="text-brand-700 font-medium">
 													Bayar Tagihan {formatRupiah(fin.chargePaid)}
 												</span>
 											)}
@@ -265,7 +265,7 @@ export default function WalasDashboard() {
 									{/* Tabungan */}
 									<div className="text-right shrink-0">
 										<p className="text-xs text-slate-400">Tabungan</p>
-										<p className="text-sm font-extrabold text-brand-700">
+										<p className="text-sm font-extrabold text-green-700">
 											{formatRupiah(fin.savingsBalance)}
 										</p>
 									</div>
