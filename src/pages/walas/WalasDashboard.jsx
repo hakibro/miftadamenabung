@@ -245,7 +245,7 @@ export default function WalasDashboard() {
 									key={student.id}
 									type="button"
 									onClick={() => navigate(`/walas/input?student=${student.id}`)}
-									className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm transition hover:shadow-md hover:border-brand-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+									className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm transition hover:shadow-md hover:border-brand-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
 									{/* Nomor */}
 									<span className="shrink-0 text-xs font-semibold text-slate-400 w-5 text-center">
 										{idx + 1}
@@ -260,7 +260,7 @@ export default function WalasDashboard() {
 												{student.gender}
 											</span>
 											{totalCharge > 0 && (
-												<span className="text-brand-700 font-medium truncate">
+												<span className="inline-block min-w-0 truncate text-brand-700 font-medium">
 													Bayar Tagihan {formatRupiah(fin.chargePaid)}
 												</span>
 											)}
