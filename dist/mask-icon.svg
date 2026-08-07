@@ -1,4 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="100" fill="#1e40af"/>
-  <text x="256" y="320" font-family="Arial,sans-serif" font-size="280" font-weight="bold" fill="white" text-anchor="middle">M</text>
+  <!-- Graduation cap -->
+  <g transform="translate(256,240)" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cap top -->
+    <polygon points="-130,-30 -20,-100 90,-30" fill="white" stroke="white"/>
+    <polygon points="-130,-30 -20,-100 90,-30 90,5 -130,5" fill="white" stroke="white" stroke-width="8"/>
+    <!-- Tassel -->
+    <line x1="85" y1="-22" x2="135" y2="-80" stroke="white" stroke-width="10"/>
+    <circle cx="140" cy="-85" r="14" fill="#fbbf24" stroke="#fbbf24"/>
+  </g>
 </svg>
