@@ -57,7 +57,8 @@ export default function StudentsPage() {
 
 	async function submit(event) {
 		event.preventDefault();
-		await saveStudent(form);
+		const { current_class, periods, ...cleanForm } = form;
+		await saveStudent(cleanForm);
 		setForm(emptyForm);
 		setShowForm(false);
 		setToast("Siswa tersimpan");
@@ -103,15 +104,22 @@ export default function StudentsPage() {
 		[classes, filters.periodId, filters.grade],
 	);
 
-	const formClassOptions = useMemo(
-		() =>
-			classes.filter(
+	const formClassOptions = useMemo(() => {
+		if (form.id && form.current_class_id) {
+			// Saat edit, selalu tampilkan semua kelas dari periode yang sama dengan kelas siswa saat ini,
+			// plus semua kelas dari periode aktif
+			const studentPeriodId =
+				form.current_class?.period_id ||
+				classes.find((c) => c.id === form.current_class_id)?.period_id;
+			return classes.filter(
 				(item) =>
 					item.period?.is_active ||
-					item.period_id === form.current_class?.period_id,
-			),
-		[classes, form.current_class?.period_id],
-	);
+					(studentPeriodId && item.period_id === studentPeriodId),
+			);
+		}
+		// Saat tambah baru, hanya tampilkan kelas dari periode aktif
+		return classes.filter((item) => item.period?.is_active);
+	}, [classes, form.id, form.current_class_id, form.current_class?.period_id]);
 
 	function openCreateForm() {
 		setForm(emptyForm);
@@ -122,6 +130,7 @@ export default function StudentsPage() {
 		setForm({
 			...row,
 			current_class_id: row.current_class_id || row.current_class?.id,
+			current_class: row.current_class || null,
 		});
 		setShowForm(true);
 	}
